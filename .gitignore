@@ -1,0 +1,23 @@
+# Unity
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Bb]uild/
+/[Bb]uilds/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/[Mm]emoryCaptures/
+/[Rr]ecordings/
+/Mixamo/
+/Teslim/
+*.csproj
+*.sln
+*.slnx
+*.pidb
+*.userprefs
+.vscode/
+.DS_Store
+*_BurstDebugInformation_DoNotShip/
+/Assets/Screenshots/
+/Assets/Screenshots.meta
+/Ekran_Goruntuleri/
