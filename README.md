@@ -3,7 +3,7 @@
 **Hazırlayan:** Mert Demir – Öğrenci No: 2506127004
 **Ders:** 3B Oyun Geliştirme Stüdyosu – Teslim: 11.11.2026
 
-**Oyna (WebGL):** https://mertdmrr.github.io/oyuncak-ruyasi/
+**Oyna (WebGL):** https://mertdmrr.github.io/altin-bayrak/
 
 ## Oyun
 Yeşiltepe Golf Kulübü'nün Altın Bayrak Turnuvası: 60 saniye içinde sahaya dağılmış 10 dev golf topunu
