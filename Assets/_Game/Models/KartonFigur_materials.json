@@ -1,0 +1,112 @@
+{
+ "materials": [
+  {
+   "name": "M_Karton_Arka",
+   "r": 0.8,
+   "g": 0.66,
+   "b": 0.48,
+   "smooth": 0.05,
+   "metal": 0.0,
+   "er": 0,
+   "eg": 0,
+   "eb": 0,
+   "es": 0
+  },
+  {
+   "name": "M_Karton_Ayakkabi",
+   "r": 0.22,
+   "g": 0.18,
+   "b": 0.2,
+   "smooth": 0.15,
+   "metal": 0.0,
+   "er": 0,
+   "eg": 0,
+   "eb": 0,
+   "es": 0
+  },
+  {
+   "name": "M_Karton_Gomlek_Karton_Figur",
+   "r": 0.95,
+   "g": 0.45,
+   "b": 0.42,
+   "smooth": 0.15,
+   "metal": 0.0,
+   "er": 0,
+   "eg": 0,
+   "eb": 0,
+   "es": 0
+  },
+  {
+   "name": "M_Karton_Goz",
+   "r": 0.12,
+   "g": 0.1,
+   "b": 0.14,
+   "smooth": 0.4,
+   "metal": 0.0,
+   "er": 0,
+   "eg": 0,
+   "eb": 0,
+   "es": 0
+  },
+  {
+   "name": "M_Karton_Kenar",
+   "r": 0.66,
+   "g": 0.52,
+   "b": 0.36,
+   "smooth": 0.05,
+   "metal": 0.0,
+   "er": 0,
+   "eg": 0,
+   "eb": 0,
+   "es": 0
+  },
+  {
+   "name": "M_Karton_Pantolon_Karton_Figur",
+   "r": 0.3,
+   "g": 0.42,
+   "b": 0.72,
+   "smooth": 0.15,
+   "metal": 0.0,
+   "er": 0,
+   "eg": 0,
+   "eb": 0,
+   "es": 0
+  },
+  {
+   "name": "M_Karton_Sac_Karton_Figur",
+   "r": 0.32,
+   "g": 0.2,
+   "b": 0.14,
+   "smooth": 0.15,
+   "metal": 0.0,
+   "er": 0,
+   "eg": 0,
+   "eb": 0,
+   "es": 0
+  },
+  {
+   "name": "M_Karton_Ten",
+   "r": 0.97,
+   "g": 0.8,
+   "b": 0.66,
+   "smooth": 0.15,
+   "metal": 0.0,
+   "er": 0,
+   "eg": 0,
+   "eb": 0,
+   "es": 0
+  },
+  {
+   "name": "M_Karton_Yanak",
+   "r": 1.0,
+   "g": 0.6,
+   "b": 0.62,
+   "smooth": 0.2,
+   "metal": 0.0,
+   "er": 0,
+   "eg": 0,
+   "eb": 0,
+   "es": 0
+  }
+ ]
+}

@@ -1,0 +1,40 @@
+{
+ "materials": [
+  {
+   "name": "M_Ahsap_Eklem",
+   "r": 0.72,
+   "g": 0.5,
+   "b": 0.32,
+   "smooth": 0.55,
+   "metal": 0.0,
+   "er": 0,
+   "eg": 0,
+   "eb": 0,
+   "es": 0
+  },
+  {
+   "name": "M_Ahsap_El",
+   "r": 0.86,
+   "g": 0.66,
+   "b": 0.44,
+   "smooth": 0.5,
+   "metal": 0.0,
+   "er": 0,
+   "eg": 0,
+   "eb": 0,
+   "es": 0
+  },
+  {
+   "name": "M_Ahsap_Tirnak",
+   "r": 0.97,
+   "g": 0.9,
+   "b": 0.8,
+   "smooth": 0.7,
+   "metal": 0.0,
+   "er": 0,
+   "eg": 0,
+   "eb": 0,
+   "es": 0
+  }
+ ]
+}

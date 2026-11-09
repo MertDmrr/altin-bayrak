@@ -66,6 +66,7 @@ public static class OyunKurucu
         font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(Root + "/Fonts/Baloo2-Bold SDF.asset");
         EnableTerrainHoles();
         SetupLayers();
+        SetupModels();
         BuildGameScene();
         BuildMenuScene();
         EditorBuildSettings.scenes = new[]
@@ -87,13 +88,13 @@ public static class OyunKurucu
         var skybox = MakeSkybox();
         RenderSettings.skybox = skybox;
         RenderSettings.ambientMode = AmbientMode.Trilight;
-        RenderSettings.ambientSkyColor = new Color(0.70f, 0.66f, 0.86f);
-        RenderSettings.ambientEquatorColor = new Color(0.82f, 0.68f, 0.76f);
+        RenderSettings.ambientSkyColor = new Color(0.70f, 0.73f, 0.86f);
+        RenderSettings.ambientEquatorColor = new Color(0.80f, 0.76f, 0.74f);
         RenderSettings.ambientGroundColor = new Color(0.42f, 0.48f, 0.42f);
         RenderSettings.fog = true;
         RenderSettings.fogMode = FogMode.Linear;
-        RenderSettings.fogColor = new Color(0.90f, 0.82f, 0.95f);
-        RenderSettings.fogStartDistance = 45f;
+        RenderSettings.fogColor = new Color(0.84f, 0.84f, 0.93f);
+        RenderSettings.fogStartDistance = 50f;
         RenderSettings.fogEndDistance = 150f;
 
         // Işık
@@ -159,7 +160,7 @@ public static class OyunKurucu
         cad.antialiasing = AntialiasingMode.FastApproximateAntialiasing;
         var tdc = camGo.AddComponent<TopDownCamera>();
         tdc.target = player.transform;
-        tdc.offset = new Vector3(0f, 14f, -10f);
+        tdc.offset = new Vector3(0f, 12.5f, -9f);
         tdc.smoothTime = 0.2f;
         tdc.SnapToTarget();
         player.GetComponent<PlayerController>().cameraTransform = camGo.transform;
@@ -173,6 +174,7 @@ public static class OyunKurucu
 
         // Dekor
         BuildDecor(terrain);
+        BuildBlenderModels(terrain, player.transform);
 
         // Yöneticiler + arayüz
         var managers = new GameObject("Oyun Yöneticisi");
@@ -199,11 +201,11 @@ public static class OyunKurucu
         spawner.holes = sockets.ToArray();
         spawner.terrain = terrain;
         spawner.ballRadius = BallRadius;
-        spawner.minDistance = FunnelRadius + 0.1f;
-        spawner.maxDistance = FunnelRadius + 0.8f;
-        spawner.keepAwayFromHoles = FunnelRadius + 0.1f;
-        spawner.areaMin = new Vector2(-24f, -24f);
-        spawner.areaMax = new Vector2(24f, 24f);
+        spawner.minDistance = FunnelRadius + BallRadius + 0.4f;
+        spawner.maxDistance = FunnelRadius + BallRadius + 1.3f;
+        spawner.keepAwayFromHoles = FunnelRadius + BallRadius + 0.4f;
+        spawner.areaMin = new Vector2(-25f, -25f);
+        spawner.areaMax = new Vector2(25f, 25f);
 
         var avoid = new List<Transform>();
         foreach (Transform c in cubesRoot.transform) avoid.Add(c);
@@ -248,6 +250,17 @@ public static class OyunKurucu
         return off;
     }
 
+    // Oyuncak Kasaba (Mahalle.blend) güneyde, düz bir alanda durur
+    public static readonly Vector3 TownPos = new Vector3(0f, 0.04f, -47f);
+    const float TownScale = 0.6f;
+
+    static float TownFlat(float wx, float wz)
+    {
+        float dx = Mathf.Max(0f, Mathf.Abs(wx - TownPos.x) - 15f);
+        float dz = Mathf.Max(0f, Mathf.Abs(wz - TownPos.z) - 7.5f);
+        return 1f - Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(new Vector2(dx, dz).magnitude / 7f));
+    }
+
     static float GroundHeight(float wx, float wz)
     {
         float r = new Vector2(wx, wz).magnitude;
@@ -259,6 +272,7 @@ public static class OyunKurucu
         // Kenarlarda yükselen sınır tepeleri
         float rim = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(70f, 95f, Mathf.Max(Mathf.Abs(wx), Mathf.Abs(wz))));
         h += rim * 14f * (0.7f + 0.3f * Mathf.PerlinNoise(wx * 0.05f, wz * 0.05f));
+        h *= 1f - TownFlat(wx, wz);
         h += FunnelOffset(wx, wz);
         return h;
     }
@@ -306,7 +320,7 @@ public static class OyunKurucu
         var layers = new[]
         {
             Layer("Katman_Cimen", "ground_grass", 16f),
-            Layer("Katman_OyunMati", "ground_playmat", 20f, new Vector2(5f, 5f)),
+            Layer("Katman_OyunMati", "ground_playmat", 26f, new Vector2(6.5f, 6.5f)),
             Layer("Katman_Kum", "ground_sand", 6f),
             Layer("Katman_Lila", "ground_lilac", 16f),
         };
@@ -497,6 +511,25 @@ public static class OyunKurucu
         return ps;
     }
 
+    static Material RingMat()
+    {
+        string path = GenDir + "/Mat_OyuncuHalkasi.mat";
+        var m = AssetDatabase.LoadAssetAtPath<Material>(path);
+        if (m == null) { m = new Material(Shader.Find("Universal Render Pipeline/Unlit")); AssetDatabase.CreateAsset(m, path); }
+        m.SetTexture("_BaseMap", AssetDatabase.LoadAssetAtPath<Texture2D>(Root + "/Textures/player_ring.png"));
+        m.SetColor("_BaseColor", new Color(1f, 1f, 1f, 0.85f));
+        m.SetFloat("_Surface", 1f);
+        m.SetFloat("_Blend", 0f);
+        m.SetOverrideTag("RenderType", "Transparent");
+        m.SetInt("_SrcBlend", (int)BlendMode.SrcAlpha);
+        m.SetInt("_DstBlend", (int)BlendMode.OneMinusSrcAlpha);
+        m.SetInt("_ZWrite", 0);
+        m.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+        m.renderQueue = 3000;
+        EditorUtility.SetDirty(m);
+        return m;
+    }
+
     static Material ParticleMat()
     {
         string path = GenDir + "/Mat_Konfeti.mat";
@@ -555,6 +588,19 @@ public static class OyunKurucu
         anim.applyRootMotion = false;
         anim.cullingMode = AnimatorCullingMode.AlwaysAnimate;
         foreach (var smr in model.GetComponentsInChildren<SkinnedMeshRenderer>()) smr.updateWhenOffscreen = true;
+
+        // Okunurluk halkası: oyuncu kalabalık sahnede de kolayca seçilsin
+        var ring = GameObject.CreatePrimitive(PrimitiveType.Quad);
+        ring.name = "Oyuncu Halkasi";
+        Object.DestroyImmediate(ring.GetComponent<Collider>());
+        ring.transform.SetParent(root.transform, false);
+        ring.transform.localPosition = new Vector3(0f, 0.05f, 0f);
+        ring.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+        ring.transform.localScale = Vector3.one * 1.9f;
+        var rr = ring.GetComponent<Renderer>();
+        rr.sharedMaterial = RingMat();
+        rr.shadowCastingMode = ShadowCastingMode.Off;
+        rr.receiveShadows = false;
 
         var pc = root.AddComponent<PlayerController>();
         pc.animator = anim;
@@ -899,6 +945,10 @@ public static class OyunKurucu
             var p = new Vector2(Mathf.Cos(a) * r, Mathf.Sin(a) * r);
             if (Mathf.Abs(p.x) < 4f || Mathf.Abs(p.y) < 4f) continue;     // patikaları boş bırak
             if (Mathf.Abs(p.x) < 9f && p.y > 24f && p.y < 40f) continue;  // saatin önü
+            if (TownFlat(p.x, p.y) > 0.01f) continue;                      // kasaba alanı
+            bool nearModel = false;
+            foreach (var z in ModelSpots) if (Vector2.Distance(p, new Vector2(z.x, z.z)) < z.y) nearModel = true;
+            if (nearModel) continue;
             return p;
         }
         return new Vector2(rMax, rMax);
@@ -924,14 +974,14 @@ public static class OyunKurucu
         bloom.threshold.Override(1.0f);
         bloom.scatter.Override(0.7f);
         Vignette vig; if (!profile.TryGet(out vig)) { vig = profile.Add<Vignette>(true); AssetDatabase.AddObjectToAsset(vig, profile); }
-        vig.intensity.Override(0.32f);
+        vig.intensity.Override(0.24f);
         vig.smoothness.Override(0.45f);
-        vig.color.Override(new Color(0.32f, 0.18f, 0.42f));
+        vig.color.Override(new Color(0.14f, 0.10f, 0.20f));
         ColorAdjustments ca; if (!profile.TryGet(out ca)) { ca = profile.Add<ColorAdjustments>(true); AssetDatabase.AddObjectToAsset(ca, profile); }
-        ca.saturation.Override(18f);
+        ca.saturation.Override(12f);
         ca.contrast.Override(12f);
         ca.postExposure.Override(-0.15f);
-        ca.colorFilter.Override(new Color(1f, 0.97f, 1f));
+        ca.colorFilter.Override(Color.white);
         Tonemapping tm; if (!profile.TryGet(out tm)) { tm = profile.Add<Tonemapping>(true); AssetDatabase.AddObjectToAsset(tm, profile); }
         tm.mode.Override(TonemappingMode.Neutral);
         EditorUtility.SetDirty(profile);
@@ -951,6 +1001,254 @@ public static class OyunKurucu
         m.SetColor("_GroundColor", new Color(0.95f, 0.75f, 0.85f));
         m.SetFloat("_Exposure", 1.25f);
         return SaveAsset(m, path);
+    }
+
+
+    // =====================================================================
+    //  BLENDER MODELLERİ (Desktop/Blend klasöründen geliştirilen modeller)
+    // =====================================================================
+    [System.Serializable] class MatDef { public string name; public float r, g, b, smooth, metal, er, eg, eb, es; }
+    [System.Serializable] class MatList { public MatDef[] materials; }
+
+    static readonly string[] ModelNames = { "OyuncakKasaba", "OyuncakAraba", "KakaoKupasi", "KartonFigur", "DevMankenEli", "SallayanEl" };
+    // x, z = konum, y = dekordan uzak tutulacak yarıçap
+    static readonly Vector3[] ModelSpots =
+    {
+        new Vector3(-40f, 8f, -10f), new Vector3(-36f, 8f, 18f), new Vector3(38f, 8f, -20f), new Vector3(24f, 8f, 41f),
+        new Vector3(41f, 7f, 12f), new Vector3(-25f, 8f, 40f),
+    };
+
+    public static void SetupModels()
+    {
+        EnsureDir(Root + "/Materials/Model");
+        foreach (var n in ModelNames)
+        {
+            string p = Root + "/Models/" + n + ".fbx";
+            var mi = AssetImporter.GetAtPath(p) as ModelImporter;
+            if (mi == null) { Debug.LogWarning("Model yok: " + p); continue; }
+            bool anim = n == "DevMankenEli" || n == "SallayanEl";
+            mi.animationType = anim ? ModelImporterAnimationType.Generic : ModelImporterAnimationType.None;
+            mi.importAnimation = anim;
+            mi.importCameras = false;
+            mi.importLights = false;
+            mi.materialImportMode = ModelImporterMaterialImportMode.ImportViaMaterialDescription;
+            var json = File.ReadAllText(Root + "/Models/" + n + "_materials.json");
+            var list = JsonUtility.FromJson<MatList>(json);
+            foreach (var d in list.materials)
+                mi.AddRemap(new AssetImporter.SourceAssetIdentifier(typeof(Material), d.name), ModelMat(d));
+            mi.SaveAndReimport();
+            if (anim)
+            {
+                var clips = mi.defaultClipAnimations;
+                foreach (var c in clips) { c.loopTime = true; c.name = n + "_Anim"; }
+                mi.clipAnimations = clips;
+                mi.SaveAndReimport();
+            }
+        }
+    }
+
+    static Material ModelMat(MatDef d)
+    {
+        string path = Root + "/Materials/Model/" + d.name + ".mat";
+        var m = AssetDatabase.LoadAssetAtPath<Material>(path);
+        if (m == null) { m = new Material(Shader.Find("Universal Render Pipeline/Lit")); AssetDatabase.CreateAsset(m, path); }
+        m.SetColor("_BaseColor", new Color(d.r, d.g, d.b, 1f));
+        m.SetFloat("_Smoothness", Mathf.Clamp01(d.smooth * 0.9f));
+        m.SetFloat("_Metallic", d.metal);
+        m.enableInstancing = true;
+        if (d.es > 0f)
+        {
+            m.EnableKeyword("_EMISSION");
+            m.SetColor("_EmissionColor", new Color(d.er, d.eg, d.eb) * Mathf.Min(3f, d.es * 0.6f));
+            m.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
+        }
+        else
+        {
+            m.DisableKeyword("_EMISSION");
+            m.SetColor("_EmissionColor", Color.black);
+        }
+        EditorUtility.SetDirty(m);
+        return m;
+    }
+
+    static GameObject PlaceModel(string n, Transform parent, Vector3 pos, float yRot, float scale, bool collide, bool snapToGround = true)
+    {
+        var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(Root + "/Models/" + n + ".fbx");
+        var wrap = new GameObject(n);
+        wrap.transform.SetParent(parent, false);
+        wrap.transform.localPosition = pos;
+        wrap.transform.localRotation = Quaternion.Euler(0f, yRot, 0f);
+        wrap.transform.localScale = Vector3.one * scale;
+        var inst = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
+        inst.transform.SetParent(wrap.transform, false);
+        if (snapToGround)
+        {
+            var rs = inst.GetComponentsInChildren<Renderer>();
+            Bounds b = rs[0].bounds; foreach (var r in rs) b.Encapsulate(r.bounds);
+            inst.transform.position += Vector3.up * (wrap.transform.position.y - b.min.y);
+        }
+        if (collide)
+        {
+            foreach (var mf in inst.GetComponentsInChildren<MeshFilter>())
+                if (mf.GetComponent<Collider>() == null) mf.gameObject.AddComponent<MeshCollider>().sharedMesh = mf.sharedMesh;
+            foreach (var r in inst.GetComponentsInChildren<Renderer>()) GameObjectUtility.SetStaticEditorFlags(r.gameObject, StaticEditorFlags.BatchingStatic);
+        }
+        return wrap;
+    }
+
+    static void AnimateModel(GameObject wrap, string n)
+    {
+        var anim = wrap.GetComponentInChildren<Animator>();
+        if (anim == null) anim = wrap.transform.GetChild(0).gameObject.AddComponent<Animator>();
+        string cpath = Root + "/Animations/" + n + ".controller";
+        AnimationClip clip = null;
+        foreach (var o in AssetDatabase.LoadAllAssetsAtPath(Root + "/Models/" + n + ".fbx"))
+            if (o is AnimationClip c && !c.name.StartsWith("__preview")) clip = c;
+        var ctrl = AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>(cpath);
+        if (ctrl == null && clip != null) ctrl = UnityEditor.Animations.AnimatorController.CreateAnimatorControllerAtPathWithClip(cpath, clip);
+        anim.runtimeAnimatorController = ctrl;
+        anim.applyRootMotion = false;
+        anim.cullingMode = AnimatorCullingMode.CullUpdateTransforms;
+        foreach (var smr in wrap.GetComponentsInChildren<SkinnedMeshRenderer>()) smr.updateWhenOffscreen = true;
+    }
+
+    static void CarKey(GameObject carWrap)
+    {
+        foreach (var t in carWrap.GetComponentsInChildren<Transform>())
+            if (t.name == "Kurma_Anahtari")
+            {
+                var e = t.gameObject.AddComponent<EksendeDon>();
+                e.reference = carWrap.transform;
+                e.localAxis = Vector3.forward;
+                e.speed = 140f;
+            }
+    }
+
+    static void SwapMaterial(GameObject wrap, string prefix, Material m)
+    {
+        foreach (var r in wrap.GetComponentsInChildren<Renderer>())
+        {
+            var mats = r.sharedMaterials;
+            for (int i = 0; i < mats.Length; i++) if (mats[i] != null && mats[i].name.StartsWith(prefix)) mats[i] = m;
+            r.sharedMaterials = mats;
+        }
+    }
+
+    static void AddBoxCollider(GameObject wrap, float shrink = 0.9f)
+    {
+        var rs = wrap.GetComponentsInChildren<Renderer>();
+        Bounds b = rs[0].bounds; foreach (var r in rs) b.Encapsulate(r.bounds);
+        var bc = wrap.AddComponent<BoxCollider>();
+        bc.center = wrap.transform.InverseTransformPoint(b.center);
+        var s = wrap.transform.lossyScale;
+        bc.size = new Vector3(b.size.x / s.x, b.size.y / s.y, b.size.z / s.z) * shrink;
+    }
+
+    static float FaceCenterYaw(Vector3 p)
+    {
+        // yerel +X ekseni merkeze baksın (karton figürün ön yüzü -X, bu yüzden +180 eklenir)
+        Vector3 d = -p; d.y = 0f; d.Normalize();
+        return Mathf.Atan2(-d.z, d.x) * Mathf.Rad2Deg;
+    }
+
+    static void BuildBlenderModels(Terrain terrain, Transform player)
+    {
+        var root = new GameObject("Blender Modelleri (Mert Demir)").transform;
+
+        // 1) Oyuncak Kasaba (Mahalle.blend)
+        var town = PlaceModel("OyuncakKasaba", root, TownPos, 0f, TownScale, true);
+        foreach (var t in town.GetComponentsInChildren<Transform>())
+            if (t.name.StartsWith("IsikNoktasi"))
+            {
+                var l = t.gameObject.AddComponent<Light>();
+                l.type = LightType.Point; l.color = new Color(1f, 0.82f, 0.55f);
+                l.range = 6f; l.intensity = 2.5f; l.shadows = LightShadows.None;
+            }
+
+        // 2) Dev oyuncak arabalar (Başlıksız.blend)
+        var carCols = new[] { new Color(0.36f, 0.62f, 0.95f), new Color(0.98f, 0.80f, 0.30f), new Color(0.90f, 0.30f, 0.30f) };
+        var carSpots = new[] { new Vector3(-36f, 0f, 18f), new Vector3(38f, 0f, -20f), new Vector3(24f, 0f, 41f) };
+        var carYaw = new[] { 120f, -40f, 200f };
+        for (int i = 0; i < carSpots.Length; i++)
+        {
+            var p = carSpots[i]; p.y = Ground(terrain, p.x, p.z);
+            var car = PlaceModel("OyuncakAraba", root, p, carYaw[i], 1.1f, true);
+            SwapMaterial(car, "M_Araba_Boya", Mat("Araba_Boya_" + i, carCols[i], null, 0.75f));
+            CarKey(car);
+        }
+
+        // 3) Dev kakao kupası + buhar (untitled.blend)
+        {
+            var p = new Vector3(-40f, 0f, -10f); p.y = Ground(terrain, p.x, p.z);
+            var cup = PlaceModel("KakaoKupasi", root, p, 30f, 2.4f, true);
+            var rs = cup.GetComponentsInChildren<Renderer>();
+            Bounds b = rs[0].bounds; foreach (var r in rs) if (r.name.Contains("Kupa")) b = r.bounds;
+            var steam = new GameObject("Buhar");
+            steam.transform.SetParent(cup.transform, false);
+            steam.transform.position = new Vector3(b.center.x, b.max.y + 0.2f, b.center.z);
+            steam.transform.rotation = Quaternion.Euler(-90f, 0f, 0f);
+            var ps = steam.AddComponent<ParticleSystem>();
+            ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            var main = ps.main; main.loop = true; main.startLifetime = 3.2f; main.startSpeed = 0.9f;
+            main.startSize = new ParticleSystem.MinMaxCurve(0.7f, 1.1f); main.maxParticles = 40;
+            main.startRotation = new ParticleSystem.MinMaxCurve(0f, Mathf.PI * 2f);
+            main.startColor = new Color(1f, 0.98f, 0.96f, 0.9f); main.scalingMode = ParticleSystemScalingMode.Hierarchy;
+            var em = ps.emission; em.rateOverTime = 6f;
+            var sh = ps.shape; sh.shapeType = ParticleSystemShapeType.Cone; sh.angle = 12f; sh.radius = 0.45f;
+            var noise = ps.noise; noise.enabled = true; noise.strength = 0.25f; noise.frequency = 0.4f;
+            var sz = ps.sizeOverLifetime; sz.enabled = true; sz.size = new ParticleSystem.MinMaxCurve(1f, AnimationCurve.Linear(0f, 0.6f, 1f, 1.6f));
+            var col = ps.colorOverLifetime; col.enabled = true;
+            var g = new Gradient();
+            g.SetKeys(new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
+                      new[] { new GradientAlphaKey(0f, 0f), new GradientAlphaKey(0.8f, 0.2f), new GradientAlphaKey(0f, 1f) });
+            col.color = g;
+            var pr = steam.GetComponent<ParticleSystemRenderer>();
+            pr.sharedMaterial = PuffMat();
+            main.playOnAwake = true;
+        }
+
+        // 4) Dev ahşap manken eli (Hand2.blend), parmakları kıvrılır
+        {
+            var p = new Vector3(41f, 0f, 12f); p.y = Ground(terrain, p.x, p.z) - 0.6f;
+            var hand = PlaceModel("DevMankenEli", root, p, -110f, 3.4f, false, false);
+            hand.transform.position = p;
+            AnimateModel(hand, "DevMankenEli");
+            AddBoxCollider(hand, 0.7f);
+        }
+
+        // 5) El sallayan dev el (EL.blend)
+        {
+            var p = new Vector3(-25f, 0f, 40f); p.y = Ground(terrain, p.x, p.z) + 1.0f;
+            var wave = PlaceModel("SallayanEl", root, p, 70f, 2.2f, false, false);
+            AnimateModel(wave, "SallayanEl");
+            AddBoxCollider(wave, 0.5f);
+        }
+
+        // 6) Karton seyirciler (Kemik.blend) oyun alanının kenarında
+        var shirtCols = new[] { new Color(0.40f, 0.70f, 0.95f), new Color(0.98f, 0.80f, 0.30f), new Color(0.55f, 0.80f, 0.45f), new Color(0.80f, 0.50f, 0.90f), new Color(1f, 0.62f, 0.30f), new Color(0.95f, 0.45f, 0.42f) };
+        var fans = new[] { new Vector3(-28.5f, 0f, 7f), new Vector3(-28.5f, 0f, -9f), new Vector3(28.5f, 0f, 9f), new Vector3(28.5f, 0f, -7f), new Vector3(-12f, 0f, -28.5f), new Vector3(12f, 0f, -28.5f) };
+        for (int i = 0; i < fans.Length; i++)
+        {
+            var p = fans[i]; p.y = Ground(terrain, p.x, p.z);
+            var f = PlaceModel("KartonFigur", root, p, FaceCenterYaw(p) + 180f, 0.55f, false);
+            SwapMaterial(f, "M_Karton_Gomlek", Mat("Karton_Gomlek_" + i, shirtCols[i], null, 0.15f));
+            AddBoxCollider(f, 0.8f);
+            var bob = f.AddComponent<YavasDon>(); bob.rotationSpeed = Vector3.zero; bob.bobAmount = 0.08f; bob.bobSpeed = 3f + i * 0.4f;
+        }
+    }
+
+    static Material PuffMat()
+    {
+        string path = GenDir + "/Mat_Buhar.mat";
+        var m = AssetDatabase.LoadAssetAtPath<Material>(path);
+        if (m == null) { m = new Material(Shader.Find("Universal Render Pipeline/Particles/Unlit")); AssetDatabase.CreateAsset(m, path); }
+        m.SetTexture("_BaseMap", AssetDatabase.LoadAssetAtPath<Texture2D>(Root + "/Textures/fx_puff.png"));
+        m.SetFloat("_Surface", 1f); m.SetFloat("_Blend", 0f);
+        m.SetOverrideTag("RenderType", "Transparent");
+        m.SetInt("_SrcBlend", (int)BlendMode.SrcAlpha); m.SetInt("_DstBlend", (int)BlendMode.OneMinusSrcAlpha); m.SetInt("_ZWrite", 0);
+        m.EnableKeyword("_SURFACE_TYPE_TRANSPARENT"); m.renderQueue = 3000;
+        EditorUtility.SetDirty(m);
+        return m;
     }
 
     // =====================================================================
@@ -1037,8 +1335,8 @@ public static class OyunKurucu
         var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
         RenderSettings.skybox = MakeSkybox();
         RenderSettings.ambientMode = AmbientMode.Trilight;
-        RenderSettings.ambientSkyColor = new Color(0.70f, 0.66f, 0.86f);
-        RenderSettings.ambientEquatorColor = new Color(0.82f, 0.68f, 0.76f);
+        RenderSettings.ambientSkyColor = new Color(0.70f, 0.73f, 0.86f);
+        RenderSettings.ambientEquatorColor = new Color(0.80f, 0.76f, 0.74f);
         RenderSettings.ambientGroundColor = new Color(0.42f, 0.48f, 0.42f);
         RenderSettings.fog = true;
         RenderSettings.fogMode = FogMode.Linear;
@@ -1105,6 +1403,14 @@ public static class OyunKurucu
         var anim = model.GetComponent<Animator>();
         anim.runtimeAnimatorController = AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>(Root + "/Animations/KarakterAnimator.controller");
         anim.applyRootMotion = false;
+
+        // Blender modelleri: el sallayan dev el, oyuncak araba, kakao kupası
+        var menuModels = new GameObject("Blender Modelleri (Menü)").transform;
+        var hand = PlaceModel("SallayanEl", menuModels, new Vector3(11f, -0.9f, 9.5f), 116f, 1.5f, false, false);
+        AnimateModel(hand, "SallayanEl");
+        var mcar = PlaceModel("OyuncakAraba", display.transform, new Vector3(-6f, 0.2f, -1.5f), 35f, 0.45f, false);
+        CarKey(mcar);
+        PlaceModel("KakaoKupasi", display.transform, new Vector3(5.5f, 0.2f, -2.5f), -30f, 0.85f, false);
 
         var music = new GameObject("Müzik").AddComponent<AudioSource>();
         music.clip = Clip("music_box_loop");

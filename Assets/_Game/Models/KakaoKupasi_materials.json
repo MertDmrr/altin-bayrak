@@ -1,0 +1,112 @@
+{
+ "materials": [
+  {
+   "name": "M_Cikolata_Parca",
+   "r": 0.22,
+   "g": 0.11,
+   "b": 0.05,
+   "smooth": 0.6,
+   "metal": 0.0,
+   "er": 0,
+   "eg": 0,
+   "eb": 0,
+   "es": 0
+  },
+  {
+   "name": "M_Kakao",
+   "r": 0.3,
+   "g": 0.15,
+   "b": 0.07,
+   "smooth": 0.82,
+   "metal": 0.0,
+   "er": 0,
+   "eg": 0,
+   "eb": 0,
+   "es": 0
+  },
+  {
+   "name": "M_Kupa_Ic",
+   "r": 0.98,
+   "g": 0.95,
+   "b": 0.88,
+   "smooth": 0.85,
+   "metal": 0.0,
+   "er": 0,
+   "eg": 0,
+   "eb": 0,
+   "es": 0
+  },
+  {
+   "name": "M_Kupa_Kalp",
+   "r": 1.0,
+   "g": 0.42,
+   "b": 0.52,
+   "smooth": 0.8,
+   "metal": 0.0,
+   "er": 0,
+   "eg": 0,
+   "eb": 0,
+   "es": 0
+  },
+  {
+   "name": "M_Kupa_Sir",
+   "r": 0.36,
+   "g": 0.72,
+   "b": 0.8,
+   "smooth": 0.88,
+   "metal": 0.0,
+   "er": 0,
+   "eg": 0,
+   "eb": 0,
+   "es": 0
+  },
+  {
+   "name": "M_Kurabiye",
+   "r": 0.8,
+   "g": 0.55,
+   "b": 0.28,
+   "smooth": 0.3,
+   "metal": 0.0,
+   "er": 0,
+   "eg": 0,
+   "eb": 0,
+   "es": 0
+  },
+  {
+   "name": "M_Marshmallow",
+   "r": 1.0,
+   "g": 0.93,
+   "b": 0.95,
+   "smooth": 0.45,
+   "metal": 0.0,
+   "er": 0,
+   "eg": 0,
+   "eb": 0,
+   "es": 0
+  },
+  {
+   "name": "M_Marshmallow_Pembe",
+   "r": 1.0,
+   "g": 0.72,
+   "b": 0.82,
+   "smooth": 0.45,
+   "metal": 0.0,
+   "er": 0,
+   "eg": 0,
+   "eb": 0,
+   "es": 0
+  },
+  {
+   "name": "M_Tabak",
+   "r": 0.98,
+   "g": 0.96,
+   "b": 0.92,
+   "smooth": 0.88,
+   "metal": 0.0,
+   "er": 0,
+   "eg": 0,
+   "eb": 0,
+   "es": 0
+  }
+ ]
+}
