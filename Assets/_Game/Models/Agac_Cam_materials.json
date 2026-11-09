@@ -1,0 +1,40 @@
+{
+ "materials": [
+  {
+   "name": "Agac_Govde",
+   "r": 0.42,
+   "g": 0.29,
+   "b": 0.19,
+   "smooth": 0.1,
+   "metal": 0.0,
+   "er": 0,
+   "eg": 0,
+   "eb": 0,
+   "es": 0
+  },
+  {
+   "name": "Agac_Yaprak_A",
+   "r": 0.33,
+   "g": 0.56,
+   "b": 0.24,
+   "smooth": 0.15,
+   "metal": 0.0,
+   "er": 0,
+   "eg": 0,
+   "eb": 0,
+   "es": 0
+  },
+  {
+   "name": "Agac_Yaprak_B",
+   "r": 0.26,
+   "g": 0.47,
+   "b": 0.2,
+   "smooth": 0.15,
+   "metal": 0.0,
+   "er": 0,
+   "eg": 0,
+   "eb": 0,
+   "es": 0
+  }
+ ]
+}

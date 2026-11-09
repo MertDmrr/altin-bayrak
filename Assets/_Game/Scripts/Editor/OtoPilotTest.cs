@@ -16,7 +16,7 @@ public static class OtoPilotTest
     static float stuckTimer;
     static Vector3 lastPos;
 
-    [MenuItem("Oyuncak Rüyası/Test/Oto Pilotu Başlat (Play modunda)")]
+    [MenuItem("Altın Bayrak/Test/Oto Pilotu Başlat (Play modunda)")]
     public static void Begin()
     {
         var s = InputSystem.settings;

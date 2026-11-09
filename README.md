@@ -1,41 +1,29 @@
-# Oyuncak Rüyası
+# Altın Bayrak – 3B Açık Dünya Prototipi
 
-**Hazırlayan:** Mert Demir — Öğrenci No: 2506127004
-**Ders:** 3B Oyun Geliştirme Stüdyosu
-**Motor:** Unity 6 (6000.2.11f1), Universal Render Pipeline
+**Hazırlayan:** Mert Demir – Öğrenci No: 2506127004
+**Ders:** 3B Oyun Geliştirme Stüdyosu – Teslim: 11.11.2026
 
-**Tarayıcıda oyna (WebGL):** https://mertdmrr.github.io/oyuncak-ruyasi/
+**Oyna (WebGL):** https://mertdmrr.github.io/oyuncak-ruyasi/
 
-## Hikaye
+## Oyun
+Yeşiltepe Golf Kulübü'nün Altın Bayrak Turnuvası: 60 saniye içinde sahaya dağılmış 10 dev golf topunu
+numaralı 10 deliğe sür. Küp gövdeli robot çim biçiciler (hocanın `RandomCubeMovement` kodu) sahada dolaşır,
+yaklaşınca seni kovalar ve çarparsa geri iter.
 
-Karakter bir gece rüyasında kendini dev oyuncaklarla dolu bir diyarda bulur ve uyurgezer gibi kolları önde yürür. Uyanmak için dev çalar saat 60 saniyeyi doldurmadan 10 topu bayraklı yuvalara yuvarlaması gerekir. Rüyadaki harf küpleri ise yaklaşınca onu kovalar.
+- **Kontroller:** W A S D / Yön tuşları: yürü · ESC / P: duraklat
+- **Kazanma:** 60 saniye dolmadan 10 topun hepsi delikte
+- **Kaybetme:** Süre dolar, turnuva kornası çalar
 
-## Nasıl oynanır
+## Ödev yönergesi
+- Hocanın T-pose karakter modeli (Blender'da iskelet + golfçü kıyafeti), Animator Controller: Idle ↔ Walk
+- Üstten (top-down) üçüncü şahıs kamera, açık dünya (Unity Terrain 200×200 m)
+- 10 küre, 10 delik (socket), fiziksel itme, 60 saniye
+- Hocanın `RandomCubeMovement.cs` kodu değiştirilmeden kullanıldı (`Assets/_Game/Scripts/Hoca`)
 
-| Tuş | İşlev |
-|---|---|
-| W A S D / Yön tuşları | Yürü |
-| ESC / P | Duraklat |
-
-Topa doğru yürüyerek kollarınla it ve yuvalara düşür. Küpler sana çarparsa geri itilirsin. 60 saniye içinde 10 topun hepsini yerleştirirsen kazanırsın.
-
-## Ödev gereksinimleri
-
-- **T-Pose karakter:** Hocanın verdiği model. Blender'da humanoid iskelet kuruldu, Unity'de Humanoid avatar olarak ayarlandı.
-- **Idle ve Walk:** Animator Controller (State Machine). Idle ↔ Walk geçişi `Speed` parametresine bağlı. Avatar Mask'li ikinci katman kolları öne sabitler (uyurgezer pozu).
-- **Kamera:** Tepe açılı 3. şahıs kamera, SmoothDamp ile sarsıntısız takip (`TopDownCamera.cs`).
-- **Açık dünya:** 200x200 m Unity Terrain. Terrain Holes ile 10 yuva açıldı.
-- **10 küre:** Rigidbody + SphereCollider. Her oyunda rastgele konumlarda doğar (`BallSpawner.cs`).
-- **Süre ve skor:** 60 saniyelik geri sayım, anlık "x / 10" skoru, "Kazandınız" ve "Süre Bitti" panelleri (`GameManager.cs`).
-- **Hocanın kodu:** `Assets/_Game/Scripts/Hoca/RandomCubeMovement.cs` hiç değiştirilmeden kovalayan küplerde kullanıldı. Kovalama davranışını ayrı bir script olan `CubeChaser.cs` ekler.
-
-## Ek özellikler
-
-Ana menü, nasıl oynanır ekranı, duraklatma menüsü, özgün müzik kutusu müziği ve ses efektleri, konfeti efekti, parlayan yuvalar, kolu süreyle dönen dev çalar saat, rüya atmosferi (Bloom, Vinyet).
-
-## Klasörler
-
-- `Assets/_Game/Scripts`: oyun kodları (Türkçe açıklamalı)
-- `Assets/_Game/Scripts/Editor/OyunKurucu.cs`: sahneleri kuran editör aracı (menü: Oyuncak Rüyası > Sahneleri Kur)
-- `Assets/_Game/Scenes`: `AnaMenu` ve `Oyun` sahneleri
-- `docs/`: WebGL build (GitHub Pages)
+## Teknik
+- Unity 6 (6000.2.11f1), URP, Input System, TextMeshPro
+- Sahneler editör aracıyla kurulur: **Altın Bayrak > Sahneleri Kur** (`Assets/_Game/Scripts/Editor/GolfKurucu.cs`)
+- Blender modelleri: kulüp binası, golf arabası, altın kupa, skor tabelası, giriş kapısı, robot çim biçici,
+  ağaçlar, teras masası, bank, kayalar + Mert'in Blender klasöründen geliştirilen 6 model
+  (oyuncak kasaba, oyuncak araba, kakao kupası, karton figür, manken eli, el sallayan el)
+- Dokular ve sesler Python ile özgün olarak üretildi

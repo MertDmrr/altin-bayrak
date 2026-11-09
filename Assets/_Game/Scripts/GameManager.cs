@@ -4,8 +4,8 @@ using UnityEngine.SceneManagement;
 using TMPro;
 
 /// <summary>
-/// Oyun döngüsü (Game Loop): 60 saniyelik geri sayım, skor (x/10),
-/// kazanma ("Kazandınız") ve kaybetme ("Süre Bitti") panelleri.
+/// Altın Bayrak oyun döngüsü (Game Loop): 60 saniyelik turnuva sayacı, skor (deliğe giren top x/10),
+/// kazanma ("Altın Bayrak senin!") ve kaybetme ("Süre doldu!") panelleri.
 /// </summary>
 public class GameManager : MonoBehaviour
 {
@@ -33,7 +33,7 @@ public class GameManager : MonoBehaviour
     [Header("Ses")]
     public AudioSource sfx;
     public AudioSource music;
-    public AudioClip startClip, scoreClip, tickClip, winClip, alarmClip;
+    public AudioClip startClip, scoreClip, tickClip, winClip, hornClip;
 
     public float TimeLeft { get; private set; }
     public int Scored { get; private set; }
@@ -45,7 +45,11 @@ public class GameManager : MonoBehaviour
     Coroutine messageRoutine;
     Vector3 timerBaseScale = Vector3.one;
 
-    static readonly string[] praise = { "Süper!", "Harika!", "Bir top daha!", "Yuvaya oturdu!", "Mükemmel!" };
+    /// <summary>Bir top deliğe girince haber verir (seyirciler zıplar, vb.).</summary>
+    public static event System.Action<HoleSocket> BallScored;
+
+    // Golf terimleriyle tebrik mesajları
+    static readonly string[] praise = { "Birdie!", "Eagle!", "Tam isabet!", "Harika vuruş!", "Hole in one!", "Par!" };
 
     void Awake()
     {
@@ -64,7 +68,7 @@ public class GameManager : MonoBehaviour
         if (timerText) timerBaseScale = timerText.transform.localScale;
         UpdateUI();
         Play(startClip);
-        ShowMessage("Uyanmadan önce 10 topu yuvalarına yuvarla!", 2.5f);
+        ShowMessage("Korna çalmadan 10 topu deliklere sok!", 2.5f);
     }
 
     void Update()
@@ -109,6 +113,7 @@ public class GameManager : MonoBehaviour
         if (!IsPlaying) return;
         Scored++;
         Play(scoreClip);
+        BallScored?.Invoke(socket);
         UpdateUI();
         if (Scored >= totalBalls)
         {
@@ -133,15 +138,15 @@ public class GameManager : MonoBehaviour
         if (win)
         {
             float used = gameDuration - TimeLeft;
-            if (winDetailText) winDetailText.text = "10 topun hepsini " + used.ToString("0.0") + " saniyede yuvalarına yerleştirdin.\nRüyadan mutlu uyandın!";
+            if (winDetailText) winDetailText.text = "10 topu " + used.ToString("0.0") + " saniyede deliklere soktun.\nAltın Bayrak Kupası senin!";
             if (winPanel) winPanel.SetActive(true);
             Play(winClip);
         }
         else
         {
-            if (loseDetailText) loseDetailText.text = "Alarm çaldı, uyandın!\nYerleştirilen top: " + Scored + " / " + totalBalls;
+            if (loseDetailText) loseDetailText.text = "Turnuva kornası çaldı!\nDelikteki top: " + Scored + " / " + totalBalls;
             if (losePanel) losePanel.SetActive(true);
-            Play(alarmClip);
+            Play(hornClip);
         }
     }
 

@@ -1,8 +1,8 @@
 using UnityEngine;
 
 /// <summary>
-/// Topun düşeceği yuva (socket / hole). Yuvanın dibindeki trigger topu algılar.
-/// Her yuvaya bir top oturur; dolan yuva parlar ve kapanır.
+/// Golf deliği (socket / hole). Deliğin dibindeki trigger topu algılar.
+/// Her deliğe bir top oturur; dolan deliğin halkası altın rengine döner, bayrak alınır.
 /// </summary>
 public class HoleSocket : MonoBehaviour
 {
@@ -14,7 +14,7 @@ public class HoleSocket : MonoBehaviour
     [Tooltip("Yuva dolunca açılan kapak; başka toplar üstünden geçer")]
     public Collider lidCollider;
     public Light glowLight;
-    public GameObject flagBeacon;     // uzaktan görünen işaret, dolunca kapanır
+    public GameObject flagBeacon;     // numaralı bayrak: top girince alınır (golfte olduğu gibi)
 
     public bool IsFilled { get; private set; }
 

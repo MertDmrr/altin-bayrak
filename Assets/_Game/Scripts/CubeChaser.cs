@@ -1,8 +1,8 @@
 using UnityEngine;
 
 /// <summary>
-/// Kovalayan oyuncak küp. Hocanın RandomCubeMovement koduna DOKUNMADAN çalışır:
-/// - Normalde küp, RandomCubeMovement ile rastgele dolaşır.
+/// Robot çim biçme makinesi (küp gövdeli). Hocanın RandomCubeMovement koduna DOKUNMADAN çalışır:
+/// - Normalde küp, RandomCubeMovement ile sahada rastgele dolaşır (çim biçer).
 /// - Oyuncu yaklaşınca RandomCubeMovement geçici olarak kapatılır ve küp oyuncuyu kovalar.
 /// - Oyuncuya çarparsa onu geri iter (can veya süre cezası yok).
 /// - Oyuncu kaçınca küp evine döner ve RandomCubeMovement tekrar açılır.
@@ -26,11 +26,13 @@ public class CubeChaser : MonoBehaviour
     public float cooldown = 2.5f;
 
     [Header("Görsel / Ses")]
-    public Transform visual;          // zıplayan görsel parça
+    public Transform visual;          // zıplayan ve gittiği yöne dönen görsel parça (fizik küpü dönmez)
     public GameObject alertIcon;      // başının üstündeki "!"
     public AudioSource audioSource;
     public AudioClip alertClip;
     public AudioClip bonkClip;
+    [Tooltip("Sürekli çalan motor sesi (kovalarken hızlanır)")]
+    public AudioSource motorAudio;
 
     enum State { Wander, Chase, Return, Cooldown }
     State state = State.Wander;
@@ -40,6 +42,8 @@ public class CubeChaser : MonoBehaviour
     float cooldownTimer;
     float hopTime;
     Vector3 visualBasePos;
+    Vector3 lastPos;
+    Quaternion facing = Quaternion.identity;
 
     void Start()
     {
@@ -51,6 +55,7 @@ public class CubeChaser : MonoBehaviour
             if (pc) player = pc.transform;
         }
         if (visual) visualBasePos = visual.localPosition;
+        lastPos = transform.position;
         if (alertIcon) alertIcon.SetActive(false);
     }
 
@@ -61,6 +66,7 @@ public class CubeChaser : MonoBehaviour
         {
             wander.enabled = false;
             if (alertIcon) alertIcon.SetActive(false);
+            if (motorAudio) motorAudio.volume = Mathf.MoveTowards(motorAudio.volume, 0f, Time.unscaledDeltaTime);
             return;
         }
         if (player == null) return;
@@ -124,10 +130,20 @@ public class CubeChaser : MonoBehaviour
     void AnimateVisual()
     {
         if (visual == null) return;
+        // Görsel, gittiği yöne döner (fizik küpü ve hocanın kodu etkilenmez)
+        Vector3 delta = transform.position - lastPos; delta.y = 0f;
+        lastPos = transform.position;
+        if (delta.sqrMagnitude > 0.000004f) facing = Quaternion.LookRotation(delta.normalized, Vector3.up);
+        visual.rotation = Quaternion.Slerp(visual.rotation, facing, 1f - Mathf.Exp(-8f * Time.deltaTime));
+        if (motorAudio)
+        {
+            float targetPitch = state == State.Chase ? 1.35f : 1f;
+            motorAudio.pitch = Mathf.MoveTowards(motorAudio.pitch, targetPitch, Time.deltaTime);
+        }
         bool moving = state == State.Chase || state == State.Return;
         float hopSpeed = state == State.Chase ? 9f : 6f;
         hopTime += Time.deltaTime * (moving ? hopSpeed : 3f);
-        float h = moving ? Mathf.Abs(Mathf.Sin(hopTime)) * 0.35f : Mathf.Abs(Mathf.Sin(hopTime)) * 0.05f;
+        float h = moving ? Mathf.Abs(Mathf.Sin(hopTime)) * 0.12f : Mathf.Abs(Mathf.Sin(hopTime)) * 0.02f;   // motor titreşimi
         visual.localPosition = visualBasePos + Vector3.up * h;
         if (alertIcon && alertIcon.activeSelf) alertIcon.transform.Rotate(0f, 180f * Time.deltaTime, 0f, Space.World);
     }

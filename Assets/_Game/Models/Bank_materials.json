@@ -1,0 +1,28 @@
+{
+ "materials": [
+  {
+   "name": "Bank_Ahsap",
+   "r": 0.63,
+   "g": 0.43,
+   "b": 0.27,
+   "smooth": 0.4,
+   "metal": 0.0,
+   "er": 0,
+   "eg": 0,
+   "eb": 0,
+   "es": 0
+  },
+  {
+   "name": "Bank_Demir",
+   "r": 0.12,
+   "g": 0.27,
+   "b": 0.2,
+   "smooth": 0.55,
+   "metal": 0.5,
+   "er": 0,
+   "eg": 0,
+   "eb": 0,
+   "es": 0
+  }
+ ]
+}

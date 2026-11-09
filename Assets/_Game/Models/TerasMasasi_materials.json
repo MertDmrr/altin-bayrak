@@ -1,0 +1,64 @@
+{
+ "materials": [
+  {
+   "name": "Masa_Ahsap",
+   "r": 0.66,
+   "g": 0.46,
+   "b": 0.3,
+   "smooth": 0.45,
+   "metal": 0.0,
+   "er": 0,
+   "eg": 0,
+   "eb": 0,
+   "es": 0
+  },
+  {
+   "name": "Masa_Beyaz",
+   "r": 0.97,
+   "g": 0.97,
+   "b": 0.96,
+   "smooth": 0.6,
+   "metal": 0.0,
+   "er": 0,
+   "eg": 0,
+   "eb": 0,
+   "es": 0
+  },
+  {
+   "name": "Masa_Metal",
+   "r": 0.25,
+   "g": 0.27,
+   "b": 0.28,
+   "smooth": 0.6,
+   "metal": 0.6,
+   "er": 0,
+   "eg": 0,
+   "eb": 0,
+   "es": 0
+  },
+  {
+   "name": "Semsiye_Beyaz",
+   "r": 0.97,
+   "g": 0.97,
+   "b": 0.96,
+   "smooth": 0.3,
+   "metal": 0.0,
+   "er": 0,
+   "eg": 0,
+   "eb": 0,
+   "es": 0
+  },
+  {
+   "name": "Semsiye_Yesil",
+   "r": 0.16,
+   "g": 0.48,
+   "b": 0.32,
+   "smooth": 0.3,
+   "metal": 0.0,
+   "er": 0,
+   "eg": 0,
+   "eb": 0,
+   "es": 0
+  }
+ ]
+}

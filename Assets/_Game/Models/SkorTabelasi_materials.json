@@ -1,0 +1,64 @@
+{
+ "materials": [
+  {
+   "name": "Skor_Altin",
+   "r": 0.98,
+   "g": 0.76,
+   "b": 0.3,
+   "smooth": 0.75,
+   "metal": 1.0,
+   "er": 0,
+   "eg": 0,
+   "eb": 0,
+   "es": 0
+  },
+  {
+   "name": "Skor_Beyaz",
+   "r": 0.97,
+   "g": 0.97,
+   "b": 0.96,
+   "smooth": 0.6,
+   "metal": 0.0,
+   "er": 0,
+   "eg": 0,
+   "eb": 0,
+   "es": 0
+  },
+  {
+   "name": "Skor_Cati",
+   "r": 0.13,
+   "g": 0.33,
+   "b": 0.24,
+   "smooth": 0.4,
+   "metal": 0.0,
+   "er": 0,
+   "eg": 0,
+   "eb": 0,
+   "es": 0
+  },
+  {
+   "name": "Skor_Tas",
+   "r": 0.72,
+   "g": 0.68,
+   "b": 0.62,
+   "smooth": 0.1,
+   "metal": 0.0,
+   "er": 0,
+   "eg": 0,
+   "eb": 0,
+   "es": 0
+  },
+  {
+   "name": "Skor_Yesil",
+   "r": 0.1,
+   "g": 0.3,
+   "b": 0.2,
+   "smooth": 0.5,
+   "metal": 0.0,
+   "er": 0,
+   "eg": 0,
+   "eb": 0,
+   "es": 0
+  }
+ ]
+}

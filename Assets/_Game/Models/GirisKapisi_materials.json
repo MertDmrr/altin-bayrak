@@ -1,0 +1,76 @@
+{
+ "materials": [
+  {
+   "name": "Kapi_Altin",
+   "r": 0.98,
+   "g": 0.76,
+   "b": 0.3,
+   "smooth": 0.75,
+   "metal": 1.0,
+   "er": 0,
+   "eg": 0,
+   "eb": 0,
+   "es": 0
+  },
+  {
+   "name": "Kapi_Lamba",
+   "r": 1.0,
+   "g": 0.95,
+   "b": 0.8,
+   "smooth": 0.5,
+   "metal": 0.0,
+   "er": 1.0,
+   "eg": 0.88,
+   "eb": 0.6,
+   "es": 4.0
+  },
+  {
+   "name": "Kapi_Siyah",
+   "r": 0.1,
+   "g": 0.1,
+   "b": 0.11,
+   "smooth": 0.5,
+   "metal": 0.4,
+   "er": 0,
+   "eg": 0,
+   "eb": 0,
+   "es": 0
+  },
+  {
+   "name": "Kapi_Tas",
+   "r": 0.72,
+   "g": 0.68,
+   "b": 0.62,
+   "smooth": 0.1,
+   "metal": 0.0,
+   "er": 0,
+   "eg": 0,
+   "eb": 0,
+   "es": 0
+  },
+  {
+   "name": "Kapi_Tas_Koyu",
+   "r": 0.58,
+   "g": 0.55,
+   "b": 0.5,
+   "smooth": 0.1,
+   "metal": 0.0,
+   "er": 0,
+   "eg": 0,
+   "eb": 0,
+   "es": 0
+  },
+  {
+   "name": "Kapi_Yesil",
+   "r": 0.1,
+   "g": 0.3,
+   "b": 0.2,
+   "smooth": 0.5,
+   "metal": 0.0,
+   "er": 0,
+   "eg": 0,
+   "eb": 0,
+   "es": 0
+  }
+ ]
+}
