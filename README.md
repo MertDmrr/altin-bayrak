@@ -5,6 +5,8 @@
 
 **Oyna (WebGL):** https://mertdmrr.github.io/altin-bayrak/
 
+**itch.io:** https://mertdmr.itch.io/altin-bayrak
+
 ## Oyun
 Yeşiltepe Golf Kulübü'nün Altın Bayrak Turnuvası: 60 saniye içinde sahaya dağılmış 10 dev golf topunu
 numaralı 10 deliğe sür. Küp gövdeli robot çim biçiciler (hocanın `RandomCubeMovement` kodu) sahada dolaşır,
