@@ -23,10 +23,14 @@ public class PlayerController : MonoBehaviour
     [Tooltip("Mixamo Walking klibinin 1x hızdaki yaklaşık yürüme hızı (m/sn). Ayak kaymasını önlemek için kullanılır.")]
     public float walkClipSpeed = 1.5f;
 
+    [Tooltip("Serbest dolaşmada Shift basılıyken yürüme hızı çarpanı (Walk animasyonu hızlanır)")]
+    public float fastWalkMultiplier = 1.6f;
+
     [HideInInspector] public bool canMove = true;   // GameManager oyun bitince kapatır
 
     Rigidbody rb;
     Vector3 moveDir;          // dünya uzayında hareket yönü (0..1 uzunluk)
+    float speedMul = 1f;      // serbest dolaşmada Shift ile 1.6
     float stunTimer;          // küp çarpınca kısa süre kontrol kaybı
 
     static readonly int SpeedHash = Animator.StringToHash("Speed");
@@ -45,6 +49,9 @@ public class PlayerController : MonoBehaviour
     void Update()
     {
         Vector2 input = (canMove && stunTimer <= 0f) ? ReadInput() : Vector2.zero;
+        var kb = Keyboard.current;
+        bool fast = OyunModu.SerbestDolasma && kb != null && (kb.leftShiftKey.isPressed || kb.rightShiftKey.isPressed);
+        speedMul = fast ? fastWalkMultiplier : 1f;
 
         // Kameranın baktığı yönü yere izdüşürüp ileri/sağ eksenlerini buluyoruz
         Vector3 forward = Vector3.forward;
@@ -61,7 +68,7 @@ public class PlayerController : MonoBehaviour
         {
             // Speed > 0.1 olunca Idle -> Walk geçişi olur (Animator Controller'da)
             animator.SetFloat(SpeedHash, moveDir.magnitude, 0.05f, Time.deltaTime);
-            animator.SetFloat(WalkMulHash, walkSpeed / walkClipSpeed);
+            animator.SetFloat(WalkMulHash, walkSpeed * speedMul / walkClipSpeed);
         }
     }
 
@@ -85,7 +92,7 @@ public class PlayerController : MonoBehaviour
             return;
         }
 
-        Vector3 velocity = moveDir * walkSpeed;
+        Vector3 velocity = moveDir * walkSpeed * speedMul;
         velocity.y = rb.linearVelocity.y;        // yerçekimi korunur
         rb.linearVelocity = velocity;
 

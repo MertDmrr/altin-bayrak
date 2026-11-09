@@ -28,7 +28,8 @@ public static class GolfKurucu
     const float HoleDepth = 1.9f;          // deliğin derinliği
     const float FunnelRadius = 4.7f;       // green eğimi (top deliğe doğru yuvarlanır)
     const float FunnelDepth = 0.45f;
-    const float GreenRadius = FunnelRadius + 0.9f;
+    const float FairwayTile = 22f;        // fairway dokusunun tekrar boyu (delik kenarı aynı desende)
+    const float RimWidth = 1.0f;          // delik kenar halkasının genişliği
     const float TerrainSize = 200f;
     const float TerrainHeight = 30f;
     const float TerrainBase = 3f;          // zemin = dünya y 0
@@ -134,7 +135,7 @@ public static class GolfKurucu
         var holesRoot = new GameObject("Delikler (10 adet)");
         var sockets = new List<HoleSocket>();
         for (int i = 0; i < HolePositions.Length; i++)
-            sockets.Add(BuildHole(i, HolePositions[i], holesRoot.transform));
+            sockets.Add(BuildHole(i, HolePositions[i], holesRoot.transform, terrain));
 
         // Dev golf topları (10 küre)
         var ballsRoot = new GameObject("Golf Topları (10 küre)");
@@ -232,6 +233,7 @@ public static class GolfKurucu
         spawner.avoidPoints = avoid.ToArray();
         spawner.avoidRadius = 5f;
 
+        miniMapSprite = MakeMiniMapSprite(terrain, MiniMapHalf);
         BuildGameUI(gm, sfx);
 
         // Dünya sınırı (görünmez duvarlar)
@@ -415,17 +417,16 @@ public static class GolfKurucu
                 float wz = -half + (y + 0.5f) / hr * TerrainSize;
                 bool solid = true;
                 foreach (var h in HolePositions)
-                    if (Vector2.Distance(new Vector2(wx, wz), h) < HoleRadius + 0.45f) solid = false;
+                    if (Vector2.Distance(new Vector2(wx, wz), h) < HoleRadius + 0.3f) solid = false;
                 holes[y, x] = solid;
             }
         td.SetHoles(0, 0, holes);
 
-        // Zemin katmanları: 0 rough, 1 fairway, 2 green, 3 kum, 4 yol
+        // Zemin katmanları: 0 rough, 1 fairway, 2 kum, 3 yol (delik çevresi de sahayla aynı desende)
         var layers = new[]
         {
             Layer("Katman_Rough", "golf_rough", 12f, 0.05f),
-            Layer("Katman_Fairway", "golf_fairway", 22f, 0.15f),
-            Layer("Katman_Green", "golf_green", 9f, 0.25f),
+            Layer("Katman_Fairway", "golf_fairway", FairwayTile, 0.15f),
             Layer("Katman_Kum", "golf_sand", 7f, 0.05f),
             Layer("Katman_Yol", "golf_path", 9f, 0.1f),
         };
@@ -439,24 +440,19 @@ public static class GolfKurucu
                 float wz = -half + (y + 0.5f) / ar * TerrainSize;
                 var p = new Vector2(wx, wz);
                 float fair = 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(-0.6f, 0.6f, SdCourse(p)));
-                float green = 0f;
-                foreach (var h in HolePositions)
-                    green = Mathf.Max(green, 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(GreenRadius - 0.35f, GreenRadius + 0.35f, Vector2.Distance(p, h))));
                 float sand = 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(-0.25f, 0.25f, SdBunkers(p)));
                 float sp = SdPond(p);
                 sand = Mathf.Max(sand, 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.8f, 1.8f, sp)));
                 float path = 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(-0.2f, 0.2f, SdPaths(p)));
                 float wPath = path;
-                float wGreen = green * (1f - path);
-                float wSand = sand * (1f - path) * (1f - green);
-                float wFair = fair * (1f - path) * (1f - green) * (1f - sand);
-                float wRough = Mathf.Max(0f, 1f - wPath - wGreen - wSand - wFair);
-                float sum = wRough + wFair + wGreen + wSand + wPath;
+                float wSand = sand * (1f - path);
+                float wFair = fair * (1f - path) * (1f - sand);
+                float wRough = Mathf.Max(0f, 1f - wPath - wSand - wFair);
+                float sum = wRough + wFair + wSand + wPath;
                 alpha[y, x, 0] = wRough / sum;
                 alpha[y, x, 1] = wFair / sum;
-                alpha[y, x, 2] = wGreen / sum;
-                alpha[y, x, 3] = wSand / sum;
-                alpha[y, x, 4] = wPath / sum;
+                alpha[y, x, 2] = wSand / sum;
+                alpha[y, x, 3] = wPath / sum;
             }
         td.SetAlphamaps(0, 0, alpha);
         EditorUtility.SetDirty(td);
@@ -476,6 +472,82 @@ public static class GolfKurucu
         return t;
     }
 
+    /// <summary>Delik kenarı: arazi yüksekliğini izleyen halka; UV'ler terrain'in fairway katmanıyla birebir aynı.</summary>
+    static Mesh MakeHoleRim(Terrain terrain, Vector2 c, Vector3 origin, float lift)
+    {
+        int seg = 96, rows = 7;
+        var v = new List<Vector3>(); var uv = new List<Vector2>(); var tri = new List<int>();
+        Vector3 tp = terrain.transform.position;
+        for (int j = 0; j < rows; j++)
+        {
+            float r = HoleRadius + RimWidth * j / (rows - 1);
+            for (int i = 0; i <= seg; i++)
+            {
+                float a = i / (float)seg * Mathf.PI * 2f;
+                float wx = c.x + Mathf.Cos(a) * r, wz = c.y + Mathf.Sin(a) * r;
+                float wy = Ground(terrain, wx, wz) + lift * (j == rows - 1 ? 0.6f : 1f);
+                v.Add(new Vector3(wx, wy, wz) - origin);
+                uv.Add(new Vector2((wx - tp.x) / FairwayTile, (wz - tp.z) / FairwayTile));
+            }
+        }
+        int w = seg + 1;
+        for (int j = 0; j < rows - 1; j++)
+            for (int i = 0; i < seg; i++)
+            {
+                int a = j * w + i, b = a + 1, c2 = a + w, d = c2 + 1;
+                tri.AddRange(new[] { a, c2, b, b, c2, d });
+            }
+        var m = new Mesh();
+        m.SetVertices(v); m.SetUVs(0, uv); m.SetTriangles(tri, 0);
+        m.RecalculateNormals();
+        if (m.normals[0].y < 0f) { tri.Reverse(); m.SetTriangles(tri, 0); m.RecalculateNormals(); }
+        m.RecalculateTangents(); m.RecalculateBounds();
+        return m;
+    }
+
+    static Material FairwayRimMat()
+    {
+        var m = Mat("Delik_Kenar_Saha", Color.white, Tex("golf_fairway"), 0.15f);
+        m.SetTextureScale("_BaseMap", Vector2.one);
+        m.SetTextureOffset("_BaseMap", Vector2.zero);
+        return m;
+    }
+
+    /// <summary>Mini harita arka planı: terrain doku ağırlıklarından üstten görünüm resmi üretir.</summary>
+    static Sprite MakeMiniMapSprite(Terrain terrain, float half)
+    {
+        int N = 256;
+        var td = terrain.terrainData;
+        var tex = new Texture2D(N, N, TextureFormat.RGBA32, false);
+        Color[] layerCols = { new Color(0.22f, 0.40f, 0.17f), new Color(0.38f, 0.62f, 0.27f), new Color(0.92f, 0.84f, 0.62f), new Color(0.80f, 0.79f, 0.75f) };
+        int ar = td.alphamapResolution;
+        float[,,] al = td.GetAlphamaps(0, 0, ar, ar);
+        Vector3 tp = terrain.transform.position;
+        for (int y = 0; y < N; y++)
+            for (int x = 0; x < N; x++)
+            {
+                float wx = -half + (x + 0.5f) / N * half * 2f, wz = -half + (y + 0.5f) / N * half * 2f;
+                int ax = Mathf.Clamp(Mathf.FloorToInt((wx - tp.x) / td.size.x * ar), 0, ar - 1);
+                int az = Mathf.Clamp(Mathf.FloorToInt((wz - tp.z) / td.size.z * ar), 0, ar - 1);
+                Color c = Color.black;
+                for (int k = 0; k < layerCols.Length && k < td.alphamapLayers; k++) c += layerCols[k] * al[az, ax, k];
+                if (SdPond(new Vector2(wx, wz)) < 0f) c = new Color(0.30f, 0.55f, 0.75f);
+                c.a = 1f;
+                tex.SetPixel(x, y, c);
+            }
+        tex.Apply();
+        string path = GenDir + "/MiniHarita.png";
+        File.WriteAllBytes(path, tex.EncodeToPNG());
+        Object.DestroyImmediate(tex);
+        AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
+        var ti = (TextureImporter)AssetImporter.GetAtPath(path);
+        ti.textureType = TextureImporterType.Sprite;
+        ti.spriteImportMode = SpriteImportMode.Single;
+        ti.mipmapEnabled = false;
+        ti.SaveAndReimport();
+        return AssetDatabase.LoadAssetAtPath<Sprite>(path);
+    }
+
     static TerrainLayer Layer(string name, string tex, float tile, float smooth)
     {
         var l = new TerrainLayer();
@@ -488,7 +560,7 @@ public static class GolfKurucu
     // =====================================================================
     //  DELİK (green + numaralı bayrak)
     // =====================================================================
-    static HoleSocket BuildHole(int index, Vector2 p, Transform parent)
+    static HoleSocket BuildHole(int index, Vector2 p, Transform parent, Terrain terrain)
     {
         float topY = -FunnelDepth;
         var root = new GameObject("Delik_" + (index + 1).ToString("00"));
@@ -498,30 +570,47 @@ public static class GolfKurucu
         socket.settleDepth = -(BallRadius - 0.08f);
         socket.filledColor = new Color(1f, 0.80f, 0.28f);
 
-        // Deliğin içi (koyu) + üstte beyaz golf kabı astarı
+        // Delik ağzının gerçek yüksekliği (arazinin eğimli green'i)
+        float rimY = 0f;
+        for (int k = 0; k < 16; k++)
+        {
+            float a = k / 16f * Mathf.PI * 2f;
+            rimY += Ground(terrain, p.x + Mathf.Cos(a) * HoleRadius, p.y + Mathf.Sin(a) * HoleRadius);
+        }
+        rimY = rimY / 16f - topY;   // köke göre
+
+        // Deliğin içi: koyu toprak kap
         var cup = new GameObject("Delik İçi");
         cup.transform.SetParent(root.transform, false);
-        var cupMesh = MeshAsset("Canak", () => MakeCup(HoleRadius, HoleDepth, 40));
+        cup.transform.localPosition = new Vector3(0f, rimY, 0f);
+        var cupMesh = MeshAsset("Canak", () => MakeCup(HoleRadius, HoleDepth + rimY, 48));
         cup.AddComponent<MeshFilter>().sharedMesh = cupMesh;
-        cup.AddComponent<MeshRenderer>().sharedMaterial = Mat("Delik_Ic", new Color(0.13f, 0.11f, 0.10f), null, 0.05f);
+        cup.AddComponent<MeshRenderer>().sharedMaterial = Mat("Delik_Ic", new Color(0.16f, 0.13f, 0.11f), null, 0.05f);
         cup.AddComponent<MeshCollider>().sharedMesh = cupMesh;
+
+        // Beyaz golf kabı astarı (gerçek deliklerdeki plastik kap) + yuvarlak dudak
         var liner = new GameObject("Kap Astarı");
         liner.transform.SetParent(root.transform, false);
-        liner.transform.localPosition = new Vector3(0f, 0.02f, 0f);
-        liner.AddComponent<MeshFilter>().sharedMesh = MeshAsset("Astar", () => MakeTube(HoleRadius - 0.015f, 0.32f, 40));
-        liner.AddComponent<MeshRenderer>().sharedMaterial = Mat("Delik_Astar", new Color(0.96f, 0.96f, 0.95f), null, 0.4f);
+        liner.transform.localPosition = new Vector3(0f, rimY - 0.05f, 0f);
+        liner.AddComponent<MeshFilter>().sharedMesh = MeshAsset("Astar", () => MakeTube(HoleRadius - 0.012f, 0.42f, 48));
+        liner.AddComponent<MeshRenderer>().sharedMaterial = Mat("Delik_Astar", new Color(0.95f, 0.95f, 0.94f), null, 0.45f);
+        var lip = new GameObject("Kap Dudağı");
+        lip.transform.SetParent(root.transform, false);
+        lip.transform.localPosition = new Vector3(0f, rimY - 0.05f, 0f);
+        lip.AddComponent<MeshFilter>().sharedMesh = MeshAsset("DelikDudak", () => MakeTorus(HoleRadius - 0.012f, 0.03f, 64, 10));
+        var lipR = lip.AddComponent<MeshRenderer>();
+        lipR.sharedMaterial = Mat("Delik_Dudak", new Color(0.97f, 0.97f, 0.96f), null, 0.6f);
+        socket.ringRenderer = lipR;
 
-        // Ağız halkası: green ile aynı çim; top girince altın rengine döner
-        var ring = new GameObject("Green Halkası");
-        ring.transform.SetParent(root.transform, false);
-        ring.transform.localPosition = new Vector3(0f, 0.035f, 0f);
-        float ringRise = FunnelProfile(HoleRadius + 0.55f) + FunnelDepth;
-        var ringMesh = MeshAsset("GreenHalka", () => MakeAnnulus(HoleRadius, HoleRadius + 0.55f, 48, ringRise));
-        ring.AddComponent<MeshFilter>().sharedMesh = ringMesh;
-        var rr = ring.AddComponent<MeshRenderer>();
-        rr.sharedMaterial = Mat("Green_Halka", new Color(0.46f, 0.74f, 0.36f), null, 0.25f);
-        ring.AddComponent<MeshCollider>().sharedMesh = ringMesh;
-        socket.ringRenderer = rr;
+        // Kenar halkası: arazinin şekline oturur, fairway ile aynı dokuyu aynı dünya koordinatında kullanır
+        // (terrain deliğinin kare tırtıklarını kapatır, sahadan ayırt edilmez)
+        var rim = new GameObject("Kenar (Saha Deseni)");
+        rim.transform.SetParent(root.transform, false);
+        var rimMesh = MeshAsset("DelikKenar_" + (index + 1), () => MakeHoleRim(terrain, p, root.transform.position, 0.012f));
+        rim.AddComponent<MeshFilter>().sharedMesh = rimMesh;
+        var rimR = rim.AddComponent<MeshRenderer>();
+        rimR.sharedMaterial = FairwayRimMat();
+        rim.AddComponent<MeshCollider>().sharedMesh = rimMesh;
 
         // Algılayıcı (trigger)
         var trig = new GameObject("Algilayici");
@@ -703,13 +792,24 @@ public static class GolfKurucu
             smr.updateWhenOffscreen = true;
             string n = smr.name;
             Material m = null;
-            if (n == "outfit_top") m = Mat("Golf_Polo", new Color(0.89f, 0.34f, 0.29f), null, 0.25f);
-            else if (n == "outfit_bottom") m = Mat("Golf_Pantolon", new Color(0.16f, 0.22f, 0.36f), null, 0.2f);
-            else if (n == "outfit_shoes") m = Mat("Golf_Ayakkabi", new Color(0.96f, 0.96f, 0.94f), null, 0.55f);
-            else if (n == "Golf_Sapkasi") { SetMats(smr, "Golf_Sapka", new Color(0.13f, 0.19f, 0.33f), 0.3f, "Golf_Sapka_Dikis", new Color(0.08f, 0.12f, 0.22f), "Golf_Altin", new Color(0.95f, 0.75f, 0.30f)); continue; }
-            else if (n == "Polo_Yaka" || n == "Polo_Dugmeler") m = Mat("Golf_Yaka", new Color(0.97f, 0.97f, 0.95f), null, 0.3f);
+            if (n == "outfit_top") m = Mat("Golf_Polo", new Color(0.96f, 0.96f, 0.94f), null, 0.25f);
+            else if (n == "outfit_bottom") m = Mat("Golf_Pantolon", new Color(0.78f, 0.68f, 0.50f), null, 0.2f);
+            else if (n == "outfit_shoes") m = Mat("Golf_Ayakkabi", new Color(0.97f, 0.97f, 0.95f), null, 0.55f);
+            else if (n == "Golf_Yelek") m = Mat("Golf_Yelek", Color.white, Tex("golf_argyle"), 0.1f);
+            else if (n == "Golf_Havlu") m = Mat("Golf_Havlu", Color.white, Tex("golf_towel"), 0.05f);
+            else if (n == "Golf_Sapkasi") { SetCapMats(smr); continue; }
+            else if (n == "Polo_Yaka" || n == "Polo_Dugmeler") m = Mat("Golf_Yaka", new Color(0.93f, 0.94f, 0.95f), null, 0.3f);
             else if (n == "Kemer") m = Mat("Golf_Kemer", new Color(0.30f, 0.19f, 0.12f), null, 0.5f);
             else if (n == "Kemer_Toka") m = Mat("Golf_Altin", new Color(0.95f, 0.75f, 0.30f), null, 0.8f);
+            else if (n == "AvatarBody")
+            {
+                // sol elde beyaz golf eldiveni
+                var arrB = smr.sharedMaterials;
+                for (int i = 0; i < arrB.Length; i++)
+                    if (arrB[i] != null && arrB[i].name.Contains("Eldiven")) arrB[i] = Mat("Golf_Eldiven", new Color(0.97f, 0.97f, 0.96f), null, 0.3f);
+                smr.sharedMaterials = arrB;
+                continue;
+            }
             if (m != null)
             {
                 var arr = smr.sharedMaterials;
@@ -720,15 +820,16 @@ public static class GolfKurucu
         return model;
     }
 
-    static void SetMats(Renderer r, string n1, Color c1, float s1, string n2, Color c2, string n3, Color c3)
+    static void SetCapMats(Renderer r)
     {
         var arr = r.sharedMaterials;
         for (int i = 0; i < arr.Length; i++)
         {
             string src = arr[i] != null ? arr[i].name : "";
-            if (src.Contains("Dikis")) arr[i] = Mat(n2, c2, null, 0.2f);
-            else if (src.Contains("Altin")) { var g = Mat(n3, c3, null, 0.7f); g.SetFloat("_Metallic", 0.55f); arr[i] = g; }
-            else arr[i] = Mat(n1, c1, null, s1);
+            if (src.Contains("Siper")) arr[i] = Mat("Golf_Sapka_Siper", new Color(0.12f, 0.19f, 0.36f), null, 0.3f);
+            else if (src.Contains("Dikis")) arr[i] = Mat("Golf_Sapka_Dikis", new Color(0.80f, 0.82f, 0.86f), null, 0.2f);
+            else if (src.Contains("Altin")) { var g = Mat("Golf_Altin", new Color(0.95f, 0.75f, 0.30f), null, 0.7f); g.SetFloat("_Metallic", 0.55f); arr[i] = g; }
+            else arr[i] = Mat("Golf_Sapka", new Color(0.97f, 0.97f, 0.96f), null, 0.3f);
         }
         r.sharedMaterials = arr;
     }
@@ -1504,7 +1605,7 @@ public static class GolfKurucu
             var ti = AssetImporter.GetAtPath(Root + "/Textures/" + n + ".png") as TextureImporter;
             if (ti != null && ti.textureType != TextureImporterType.NormalMap) { ti.textureType = TextureImporterType.NormalMap; ti.SaveAndReimport(); }
         }
-        foreach (var n in new[] { "icon_flag", "icon_clock", "icon_ball", "ui_trophy", "ui_panel", "ui_button" })
+        foreach (var n in new[] { "icon_flag", "icon_clock", "icon_ball", "ui_trophy", "ui_panel", "ui_button", "ui_dot", "ui_arrow" })
         {
             var ti = AssetImporter.GetAtPath(Root + "/Textures/" + n + ".png") as TextureImporter;
             if (ti != null && (ti.textureType != TextureImporterType.Sprite || ti.spriteImportMode != SpriteImportMode.Single))
@@ -1675,6 +1776,9 @@ public static class GolfKurucu
     // =====================================================================
     //  ARAYÜZ (Oyun)
     // =====================================================================
+    const float MiniMapHalf = 34f;
+    static Sprite miniMapSprite;
+
     static void BuildGameUI(GameManager gm, AudioSource sfx)
     {
         var canvas = MakeCanvas("Arayüz (HUD)");
@@ -1684,6 +1788,7 @@ public static class GolfKurucu
         var timerBox = Panel(canvas.transform, "Süre Kutusu", UiGreen, new Vector2(0.5f, 1f), new Vector2(0f, -24f), new Vector2(250f, 130f));
         Icon(timerBox.transform, "icon_clock", new Vector2(-82f, 36f), 34f, UiGold);
         var tl = MakeText(timerBox.transform, "Etiket", "SÜRE", 28, UiGold, new Vector2(14f, 36f), new Vector2(160f, 40f));
+        gm.timerLabel = tl;
         gm.timerText = MakeText(timerBox.transform, "Süre", "60", 76, Color.white, new Vector2(0f, -16f), new Vector2(240f, 90f));
         gm.timerNormalColor = Color.white;
         gm.timerDangerColor = new Color(1f, 0.45f, 0.38f);
@@ -1699,6 +1804,25 @@ public static class GolfKurucu
         Anchor(hint.rectTransform, new Vector2(1f, 1f), new Vector2(-30f, -30f));
         hint.alignment = TextAlignmentOptions.Right;
         hint.outlineWidth = 0.22f; hint.outlineColor = new Color(0.05f, 0.18f, 0.1f);
+        gm.hintText = hint;
+
+        // Mini harita (sağ alt)
+        var mapBox = Panel(canvas.transform, "Mini Harita", UiGreen, new Vector2(1f, 0f), new Vector2(-24f, 20f), new Vector2(290f, 318f));
+        MakeText(mapBox.transform, "Etiket", "SAHA", 24, UiGold, new Vector2(0f, 136f), new Vector2(260f, 34f));
+        var mapImg = new GameObject("Harita", typeof(RectTransform), typeof(Image));
+        mapImg.transform.SetParent(mapBox.transform, false);
+        var mi = mapImg.GetComponent<Image>();
+        mi.sprite = miniMapSprite;
+        mi.raycastTarget = false;
+        var mrt = mapImg.GetComponent<RectTransform>();
+        mrt.anchoredPosition = new Vector2(0f, -14f);
+        mrt.sizeDelta = new Vector2(262f, 262f);
+        var mh = mapBox.AddComponent<MiniHarita>();
+        mh.area = mrt;
+        mh.dotSprite = SpriteAt("ui_dot");
+        mh.arrowSprite = SpriteAt("ui_arrow");
+        mh.flagSprite = SpriteAt("icon_flag");
+        mh.worldHalfSize = MiniMapHalf;
         var credit = MakeText(canvas.transform, "Hazırlayan", "Mert Demir  •  2506127004  •  3B Oyun Geliştirme Stüdyosu", 22, new Color(1f, 1f, 1f, 0.92f), Vector2.zero, new Vector2(900f, 34f));
         Anchor(credit.rectTransform, new Vector2(0f, 0f), new Vector2(24f, 16f));
         credit.alignment = TextAlignmentOptions.Left;
@@ -1715,8 +1839,8 @@ public static class GolfKurucu
         var winCard = Panel(win.transform, "Kart", new Color(0.99f, 0.98f, 0.95f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(980f, 560f));
         var trophy = Icon(winCard.transform, "ui_trophy", new Vector2(-330f, 30f), 300f, Color.white);
         trophy.preserveAspect = true;
-        MakeText(winCard.transform, "Başlık", "TEBRİKLER!", 96, new Color(0.85f, 0.6f, 0.12f), new Vector2(110f, 170f), new Vector2(640f, 120f));
-        gm.winDetailText = MakeText(winCard.transform, "Detay", "", 36, CardText, new Vector2(110f, 30f), new Vector2(620f, 150f));
+        MakeText(winCard.transform, "Başlık", "TEBRİKLER!", 92, new Color(0.85f, 0.6f, 0.12f), new Vector2(110f, 190f), new Vector2(640f, 110f));
+        gm.winDetailText = MakeText(winCard.transform, "Detay", "", 32, CardText, new Vector2(110f, 30f), new Vector2(640f, 190f));
         var b1 = MakeButton(winCard.transform, "Tekrar Oyna", BtnGreen, new Vector2(-50f, -175f), new Vector2(320f, 100f), sfx, click);
         UnityEventTools.AddPersistentListener(b1.onClick, gm.Restart);
         var b2 = MakeButton(winCard.transform, "Ana Menü", BtnNavy, new Vector2(290f, -175f), new Vector2(320f, 100f), sfx, click);
@@ -1822,13 +1946,12 @@ public static class GolfKurucu
         var fm = Mat("Menu_Fairway", Color.white, Tex("golf_fairway"), 0.15f);
         fm.SetTextureScale("_BaseMap", new Vector2(1.2f, 1.2f));
         island.GetComponent<Renderer>().sharedMaterial = fm;
-        var greenDisc = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-        greenDisc.name = "Green";
-        Object.DestroyImmediate(greenDisc.GetComponent<Collider>());
-        greenDisc.transform.SetParent(display.transform, false);
-        greenDisc.transform.localScale = new Vector3(8f, 0.02f, 8f);
-        greenDisc.transform.localPosition = new Vector3(3f, 0.01f, 2f);
-        greenDisc.GetComponent<Renderer>().sharedMaterial = Mat("Menu_Green", Color.white, Tex("golf_green"), 0.3f);
+        var menuLip = new GameObject("Kap Dudağı");
+        menuLip.transform.SetParent(display.transform, false);
+        menuLip.transform.localPosition = new Vector3(3f, 0.04f, 2f);
+        menuLip.transform.localScale = Vector3.one * (0.8f / (HoleRadius - 0.012f));
+        menuLip.AddComponent<MeshFilter>().sharedMesh = MeshAsset("DelikDudak", () => MakeTorus(HoleRadius - 0.012f, 0.03f, 64, 10));
+        menuLip.AddComponent<MeshRenderer>().sharedMaterial = Mat("Delik_Dudak", new Color(0.97f, 0.97f, 0.96f), null, 0.6f);
         var holeDisc = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         Object.DestroyImmediate(holeDisc.GetComponent<Collider>());
         holeDisc.transform.SetParent(display.transform, false);
@@ -1901,11 +2024,16 @@ public static class GolfKurucu
         Anchor(sub.rectTransform, new Vector2(0.5f, 1f), new Vector2(0f, -240f));
         sub.outlineWidth = 0.25f; sub.outlineColor = new Color(0.06f, 0.24f, 0.13f);
 
-        var bPlay = MakeButton(canvas.transform, "BAŞLA", BtnGreen, new Vector2(-560f, 20f), new Vector2(440f, 110f), sfx, click);
+        var bPlay = MakeButton(canvas.transform, "TURNUVA (60 sn)", BtnGreen, new Vector2(-560f, 60f), new Vector2(460f, 106f), sfx, click);
         UnityEventTools.AddPersistentListener(bPlay.onClick, mm.PlayGame);
-        var bHow = MakeButton(canvas.transform, "Nasıl Oynanır", BtnGold, new Vector2(-560f, -110f), new Vector2(440f, 96f), sfx, click);
+        var bFree = MakeButton(canvas.transform, "Serbest Dolaşma", BtnNavy, new Vector2(-560f, -60f), new Vector2(460f, 96f), sfx, click);
+        UnityEventTools.AddPersistentListener(bFree.onClick, mm.PlayFreeRoam);
+        var bHow = MakeButton(canvas.transform, "Nasıl Oynanır", BtnGold, new Vector2(-560f, -170f), new Vector2(460f, 96f), sfx, click);
         UnityEventTools.AddPersistentListener(bHow.onClick, mm.OpenHowTo);
-        var bQuit = MakeButton(canvas.transform, "Çıkış", BtnRed, new Vector2(-560f, -225f), new Vector2(440f, 96f), sfx, click);
+        var bQuit = MakeButton(canvas.transform, "Çıkış", BtnRed, new Vector2(-560f, -280f), new Vector2(460f, 96f), sfx, click);
+        var best = MakeText(canvas.transform, "En İyi Süre", "", 30, UiGold, new Vector2(-560f, 150f), new Vector2(460f, 46f));
+        best.outlineWidth = 0.25f; best.outlineColor = new Color(0.06f, 0.24f, 0.13f);
+        mm.bestTimeText = best;
         UnityEventTools.AddPersistentListener(bQuit.onClick, mm.QuitGame);
         mm.quitButton = bQuit.gameObject;
 
@@ -1915,19 +2043,20 @@ public static class GolfKurucu
 
         // Nasıl oynanır paneli
         var how = Overlay(canvas.transform, "Nasıl Oynanır Paneli");
-        var card = Panel(how.transform, "Kart", new Color(0.99f, 0.98f, 0.95f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(1220f, 800f));
-        MakeText(card.transform, "Başlık", "Nasıl Oynanır?", 70, new Color(0.10f, 0.36f, 0.22f), new Vector2(0f, 320f), new Vector2(1100f, 90f));
+        var card = Panel(how.transform, "Kart", new Color(0.99f, 0.98f, 0.95f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(1220f, 860f));
+        MakeText(card.transform, "Başlık", "Nasıl Oynanır?", 70, new Color(0.10f, 0.36f, 0.22f), new Vector2(0f, 352f), new Vector2(1100f, 90f));
         var body = MakeText(card.transform, "Metin",
             "Yeşiltepe Golf Kulübü'nün <b>Altın Bayrak Turnuvası</b>'ndasın! Bu turnuvada sopa yok: dev golf toplarını elinle sürüp <b>60 saniye</b> içinde <b>10 numaralı deliğe</b> sokmalısın.\n\n" +
             "<b>W A S D / Yön Tuşları:</b>  Yürü\n" +
             "<b>Topu it:</b>  Topa doğru yürü, kollarınla iterek bayraklı deliğe yuvarla\n" +
             "<b>Robot çim biçiciler:</b>  Yaklaşınca seni kovalar, çarparsa geri itilirsin\n" +
-            "<b>ESC / P:</b>  Duraklat\n\n" +
+            "<b>ESC / P:</b>  Duraklat\n" +
+            "<b>Serbest Dolaşma:</b>  Süre yok, robotlar kovalamaz; Shift ile hızlı yürü\n\n" +
             "Korna çalmadan 10 topu da deliğe sokarsan <b>Altın Bayrak Kupası</b> senin!",
-            30, CardText, new Vector2(0f, 10f), new Vector2(1120f, 520f));
+            30, CardText, new Vector2(0f, 0f), new Vector2(1120f, 560f));
         body.alignment = TextAlignmentOptions.Left;
         body.lineSpacing = 8f;
-        var bClose = MakeButton(card.transform, "Tamam", BtnGreen, new Vector2(0f, -325f), new Vector2(320f, 90f), sfx, click);
+        var bClose = MakeButton(card.transform, "Tamam", BtnGreen, new Vector2(0f, -355f), new Vector2(320f, 90f), sfx, click);
         UnityEventTools.AddPersistentListener(bClose.onClick, mm.CloseHowTo);
         mm.howToPanel = how;
         how.SetActive(false);
@@ -2224,6 +2353,32 @@ public static class GolfKurucu
         m.SetVertices(v); m.SetUVs(0, uv); m.SetTriangles(tri, 0);
         m.RecalculateNormals(); m.RecalculateBounds();
         if (m.normals[0].y < 0f) { tri.Reverse(); m.SetTriangles(tri, 0); m.RecalculateNormals(); }
+        return m;
+    }
+
+    static Mesh MakeTorus(float R, float r, int seg, int side)
+    {
+        var v = new List<Vector3>(); var n = new List<Vector3>(); var tri = new List<int>();
+        for (int i = 0; i <= seg; i++)
+        {
+            float a = i / (float)seg * Mathf.PI * 2f;
+            var c = new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a));
+            for (int j = 0; j <= side; j++)
+            {
+                float b = j / (float)side * Mathf.PI * 2f;
+                var nn = c * Mathf.Cos(b) + Vector3.up * Mathf.Sin(b);
+                v.Add(c * R + nn * r); n.Add(nn);
+            }
+        }
+        for (int i = 0; i < seg; i++)
+            for (int j = 0; j < side; j++)
+            {
+                int a = i * (side + 1) + j, b = a + side + 1;
+                tri.AddRange(new[] { a, a + 1, b, b, a + 1, b + 1 });
+            }
+        var m = new Mesh();
+        m.SetVertices(v); m.SetNormals(n); m.SetTriangles(tri, 0);
+        m.RecalculateBounds();
         return m;
     }
 

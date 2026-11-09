@@ -14,11 +14,12 @@ public class SkorPanosu : MonoBehaviour
         var gm = GameManager.Instance;
         if (gm == null || text == null) return;
         int sec = Mathf.CeilToInt(gm.TimeLeft);
-        string state = gm.IsOver ? (gm.Won ? "<color=#F6C945>KAZANDI!</color>" : "<color=#FF7A6B>SÜRE DOLDU</color>") : "OYUNDA";
+        string state = gm.IsOver ? (gm.Won ? "<color=#F6C945>KAZANDI!</color>" : "<color=#FF7A6B>SÜRE DOLDU</color>") : (gm.FreeRoam ? "SERBEST DOLAŞMA" : "OYUNDA");
+        string time = gm.FreeRoam ? "SÜRESİZ" : sec + " sn";
         text.text =
             "OYUNCU     <color=#FFFFFF>" + playerName + "</color>\n" +
             "DELİK       <color=#F6C945>" + gm.Scored + " / " + gm.totalBalls + "</color>\n" +
-            "SÜRE         <color=#FFFFFF>" + sec + " sn</color>\n" +
+            "SÜRE         <color=#FFFFFF>" + time + "</color>\n" +
             "DURUM      " + state;
     }
 }

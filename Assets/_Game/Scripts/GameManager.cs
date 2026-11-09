@@ -21,6 +21,8 @@ public class GameManager : MonoBehaviour
 
     [Header("Arayüz")]
     public TMP_Text timerText;
+    public TMP_Text timerLabel;       // "SÜRE" yazısı (serbest modda "SERBEST")
+    public TMP_Text hintText;         // sağ üstteki kontrol ipucu
     public TMP_Text scoreText;
     public TMP_Text messageText;
     public GameObject winPanel;
@@ -40,6 +42,8 @@ public class GameManager : MonoBehaviour
     public bool IsPlaying { get; private set; }
     public bool IsOver { get; private set; }
     public bool Won { get; private set; }
+    /// <summary>Ana menüden "Serbest Dolaşma" seçildiyse süre yoktur.</summary>
+    public bool FreeRoam => OyunModu.SerbestDolasma;
 
     int lastTickSecond = -1;
     Coroutine messageRoutine;
@@ -66,14 +70,24 @@ public class GameManager : MonoBehaviour
         if (winPanel) winPanel.SetActive(false);
         if (losePanel) losePanel.SetActive(false);
         if (timerText) timerBaseScale = timerText.transform.localScale;
+        if (FreeRoam)
+        {
+            if (timerLabel) timerLabel.text = "MOD";
+            if (hintText) hintText.text = "WASD: Yürü     Shift: Hızlı Yürü     ESC / P: Duraklat";
+            ShowMessage("Serbest Dolaşma: süre yok, sahayı keşfet!", 3f);
+        }
+        else
+        {
+            ShowMessage("Korna çalmadan 10 topu deliklere sok!", 2.5f);
+        }
         UpdateUI();
         Play(startClip);
-        ShowMessage("Korna çalmadan 10 topu deliklere sok!", 2.5f);
     }
 
     void Update()
     {
         if (!IsPlaying) return;
+        if (FreeRoam) return;                // serbest dolaşmada süre işlemez
 
         TimeLeft -= Time.deltaTime;   // Duraklatınca Time.timeScale = 0 olduğu için sayaç da durur
         if (TimeLeft <= 0f)
@@ -96,7 +110,13 @@ public class GameManager : MonoBehaviour
     void UpdateUI()
     {
         int sec = Mathf.CeilToInt(TimeLeft);
-        if (timerText)
+        if (timerText && FreeRoam)
+        {
+            timerText.text = "SERBEST";
+            timerText.fontSize = 44f;
+            timerText.color = timerNormalColor;
+        }
+        else if (timerText)
         {
             timerText.text = sec.ToString();
             bool danger = sec <= 10 && IsPlaying;
@@ -115,7 +135,12 @@ public class GameManager : MonoBehaviour
         Play(scoreClip);
         BallScored?.Invoke(socket);
         UpdateUI();
-        if (Scored >= totalBalls)
+        if (Scored >= totalBalls && FreeRoam)
+        {
+            ShowMessage("10 topun hepsi delikte! Gezmeye devam edebilirsin.", 3.5f);
+            Play(winClip);
+        }
+        else if (Scored >= totalBalls)
         {
             EndGame(true);
         }
@@ -138,7 +163,12 @@ public class GameManager : MonoBehaviour
         if (win)
         {
             float used = gameDuration - TimeLeft;
-            if (winDetailText) winDetailText.text = "10 topu " + used.ToString("0.0") + " saniyede deliklere soktun.\nAltın Bayrak Kupası senin!";
+            // En iyi süre (rekor) kaydı
+            float best = PlayerPrefs.GetFloat(OyunModu.EnIyiSureKey, 0f);
+            bool record = best <= 0f || used < best;
+            if (record) { PlayerPrefs.SetFloat(OyunModu.EnIyiSureKey, used); PlayerPrefs.Save(); best = used; }
+            string bestLine = record ? "YENİ REKOR!" : "En iyi süren: " + best.ToString("0.0") + " sn";
+            if (winDetailText) winDetailText.text = "10 topu " + used.ToString("0.0") + " saniyede deliklere soktun.\nAltın Bayrak Kupası senin!\n<color=#C98A12>" + bestLine + "</color>";
             if (winPanel) winPanel.SetActive(true);
             Play(winClip);
         }

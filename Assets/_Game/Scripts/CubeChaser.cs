@@ -76,7 +76,8 @@ public class CubeChaser : MonoBehaviour
         switch (state)
         {
             case State.Wander:
-                if (dist < detectRadius) StartChase();
+                // Serbest dolaşmada robotlar sadece çim biçer (hocanın koduyla dolaşır), kovalamaz
+                if (dist < detectRadius && !OyunModu.SerbestDolasma) StartChase();
                 break;
 
             case State.Chase:
