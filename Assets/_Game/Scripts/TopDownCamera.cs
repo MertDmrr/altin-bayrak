@@ -16,6 +16,14 @@ public class TopDownCamera : MonoBehaviour
     public float smoothTime = 0.2f;
 
     Vector3 velocity;
+    static float shakeTime, shakeAmount;
+
+    /// <summary>Kısa kamera sarsıntısı (robot çarpınca).</summary>
+    public static void Shake(float amount, float duration)
+    {
+        shakeAmount = Mathf.Max(shakeAmount, amount);
+        shakeTime = Mathf.Max(shakeTime, duration);
+    }
 
     void Start()
     {
@@ -41,5 +49,12 @@ public class TopDownCamera : MonoBehaviour
         Vector3 desired = target.position + offset;
         transform.position = Vector3.SmoothDamp(transform.position, desired, ref velocity, smoothTime);
         transform.rotation = FixedRotation();
+        if (shakeTime > 0f)
+        {
+            shakeTime -= Time.deltaTime;
+            float k = Mathf.Clamp01(shakeTime * 4f);
+            transform.position += Random.insideUnitSphere * shakeAmount * k;
+            if (shakeTime <= 0f) shakeAmount = 0f;
+        }
     }
 }

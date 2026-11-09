@@ -960,16 +960,63 @@ public static class GolfKurucu
         motor.minDistance = 3f;
         motor.maxDistance = 22f;
 
+        // Tehlike halkası: robotun fark etme alanı yerde görünür (oyuncu nereden geçeceğini planlayabilir)
+        var ringGo = GameObject.CreatePrimitive(PrimitiveType.Quad);
+        ringGo.name = "Tehlike Halkası";
+        Object.DestroyImmediate(ringGo.GetComponent<Collider>());
+        ringGo.transform.SetParent(root.transform, false);
+        ringGo.transform.localPosition = new Vector3(0f, -size * 0.5f + 0.05f, 0f);
+        ringGo.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+        ringGo.transform.localScale = Vector3.one * 10f;
+        var ringR = ringGo.GetComponent<Renderer>();
+        ringR.sharedMaterial = UnlitTransparent("Mat_RobotHalkasi", "robot_ring", new Color(1f, 0.62f, 0.2f, 0.55f));
+        ringR.shadowCastingMode = ShadowCastingMode.Off;
+        ringR.receiveShadows = false;
+
+        // Tepe lambası ışığı (kovalarken çakar)
+        var beacon = new GameObject("Tepe Lambası Işığı").AddComponent<Light>();
+        beacon.transform.SetParent(vis.transform, false);
+        beacon.transform.localPosition = new Vector3(0f, size * 0.5f + 1.2f, 0f);
+        beacon.type = LightType.Point;
+        beacon.color = new Color(1f, 0.4f, 0.1f);
+        beacon.range = 6f;
+        beacon.intensity = 2f;
+        beacon.shadows = LightShadows.None;
+
+        // Çarpınca saçılan çim parçaları
+        var burstGo = new GameObject("Çarpma Efekti");
+        burstGo.transform.SetParent(root.transform, false);
+        burstGo.transform.localPosition = new Vector3(0f, -0.3f, 0f);
+        var burst = burstGo.AddComponent<ParticleSystem>();
+        burst.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+        var bm = burst.main;
+        bm.playOnAwake = false; bm.loop = false; bm.duration = 0.5f;
+        bm.startLifetime = new ParticleSystem.MinMaxCurve(0.5f, 1f);
+        bm.startSpeed = new ParticleSystem.MinMaxCurve(3f, 6f);
+        bm.startSize = new ParticleSystem.MinMaxCurve(0.1f, 0.22f);
+        bm.gravityModifier = 1.6f;
+        bm.simulationSpace = ParticleSystemSimulationSpace.World;
+        bm.startColor = new ParticleSystem.MinMaxGradient(new Color(0.35f, 0.62f, 0.25f), new Color(1f, 0.85f, 0.35f));
+        var be = burst.emission; be.rateOverTime = 0f; be.SetBursts(new[] { new ParticleSystem.Burst(0f, 30) });
+        var bs = burst.shape; bs.shapeType = ParticleSystemShapeType.Sphere; bs.radius = 0.6f;
+        burstGo.GetComponent<ParticleSystemRenderer>().sharedMaterial = ParticleMat("Mat_Cim", "fx_soft", false);
+
         var ch = root.AddComponent<CubeChaser>();
         ch.player = player;
         ch.detectRadius = 5f;
         ch.giveUpRadius = 8.5f;
-        ch.chaseSpeed = 2.5f;
+        ch.chaseSpeed = 3f;
+        ch.acceleration = 4f;
         ch.returnSpeed = 3f;
         ch.leashRadius = 10f;
+        ch.alertTime = 0.55f;
+        ch.leadTime = 0.45f;
         ch.hitForce = 4f;
         ch.stunTime = 0.4f;
         ch.cooldown = 3f;
+        ch.dangerRing = ringR;
+        ch.beaconLight = beacon;
+        ch.hitBurst = burst;
         ch.visual = vis.transform;
         ch.alertIcon = alert;
         ch.audioSource = audio;
@@ -1096,6 +1143,7 @@ public static class GolfKurucu
             var tp = TownPos; tp.y = Ground(terrain, tp.x, tp.z) + 0.02f;
             var town = PlaceModel("OyuncakKasaba", world, tp, 0f, 1f, true);
             LampLights(town, 2.2f, 8f);
+            TownCars(town, true);
         }
 
         // ---- Karşılama heykeli: el sallayan dev el (EL.blend)
@@ -1137,51 +1185,27 @@ public static class GolfKurucu
             }
         }
 
-        // ---- Sahayı dolaşan golf arabaları (önünde oyuncu varsa durur)
+        // ---- Saha ipleri ve karton seyirci panoları (oyun alanının kenarı)
         {
-            var pts = RingPoints(RingHalf, RingCorner, 48);
-            for (int k = 0; k < 2; k++)
-            {
-                var go = new GameObject("Golf Arabası (Yolda) " + (k + 1));
-                go.transform.SetParent(world);
-                var model = PlaceModel("GolfArabasi", go.transform, Vector3.zero, 0f, 1f, false, false);
-                model.transform.localPosition = Vector3.zero;
-                var box = go.AddComponent<BoxCollider>();
-                box.center = new Vector3(0f, 1f, 0f); box.size = new Vector3(1.3f, 2f, 2.6f);
-                var rb = go.AddComponent<Rigidbody>(); rb.isKinematic = true;
-                var yt = go.AddComponent<YolTakip>();
-                var list = new List<Vector3>(pts);
-                if (k == 1) list.Reverse();
-                yt.points = list.ToArray();
-                yt.startIndex = k == 0 ? 0 : 20;
-                yt.speed = 3.2f;
-                yt.player = player;
-                yt.terrain = terrain;
-                yt.yOffset = 0.02f;
-                go.transform.position = new Vector3(list[yt.startIndex].x, 0f, list[yt.startIndex].z);
-            }
-        }
-
-        // ---- Seyirci ipleri ve karton seyirciler (Kemik.blend)
-        {
-            var gal = new GameObject("Seyirci Alanı").transform;
+            var gal = new GameObject("Saha İpleri ve Karton Seyirciler").transform;
             gal.SetParent(world);
             var postM = Mat("Ip_Direk", new Color(0.96f, 0.96f, 0.95f), null, 0.5f);
             var ropeM = Mat("Ip", new Color(0.95f, 0.75f, 0.30f), null, 0.4f);
             RopeLine(gal, terrain, new Vector3(26.5f, 0, -13f), new Vector3(26.5f, 0, 15f), postM, ropeM);
             RopeLine(gal, terrain, new Vector3(-26.5f, 0, -13f), new Vector3(-26.5f, 0, 15f), postM, ropeM);
             RopeLine(gal, terrain, new Vector3(-13f, 0, 26.5f), new Vector3(13f, 0, 26.5f), postM, ropeM);
+
+            // Karton seyirci panoları (Kemik.blend) – hareket etmeyen dekor
             var shirts = new[] { new Color(0.40f, 0.70f, 0.95f), new Color(0.98f, 0.80f, 0.30f), new Color(0.95f, 0.95f, 0.93f), new Color(0.80f, 0.50f, 0.90f), new Color(1f, 0.62f, 0.30f), new Color(0.95f, 0.45f, 0.42f), new Color(0.55f, 0.80f, 0.45f), new Color(0.25f, 0.35f, 0.6f) };
             var fans = new List<Vector3>();
             foreach (float z in new[] { -9f, -3f, 3f, 9f }) { fans.Add(new Vector3(27.7f, 0, z)); fans.Add(new Vector3(-27.7f, 0, z + 1.5f)); }
             foreach (float x in new[] { -8f, -2f, 4f, 10f }) fans.Add(new Vector3(x, 0, 27.7f));
             for (int k = 0; k < fans.Count; k++)
             {
-                var p = fans[k]; p.y = Ground(terrain, p.x, p.z);
-                var f = Face("KartonFigur", gal, p, YawToward(p, center), 0.4f, false);
+                var fp = fans[k]; fp.y = Ground(terrain, fp.x, fp.z);
+                var f = Face("KartonFigur", gal, fp, YawToward(fp, center), 0.4f, false);
                 SwapMaterial(f, "M_Karton_Gomlek", Mat("Karton_Gomlek_" + k, shirts[k % shirts.Length], null, 0.15f));
                 AddBoxCollider(f, 0.8f);
-                f.AddComponent<SeyirciZipla>();
             }
         }
 
@@ -1200,6 +1224,33 @@ public static class GolfKurucu
 
         // ---- Ağaçlar
         BuildTrees(world, terrain);
+    }
+
+    /// <summary>Oyuncak Kasaba'nın sokaklarına Mert'in oyuncak arabasını yerleştirir (Blender'daki ArabaNoktasi boş noktalarına).</summary>
+    static void TownCars(GameObject town, bool collide)
+    {
+        var cols = new[] { new Color(0.86f, 0.18f, 0.16f), new Color(0.20f, 0.45f, 0.85f), new Color(0.97f, 0.80f, 0.28f), new Color(0.30f, 0.65f, 0.40f) };
+        for (int i = 0; i < 12; i++)
+        {
+            var a = Find(town, "ArabaNoktasi_" + i);
+            var b = Find(town, "ArabaYonu_" + i);
+            if (a == null || b == null) break;
+            Vector3 d = b.position - a.position; d.y = 0f;
+            float len = d.magnitude * 2f;                       // dünya ölçeğinde araba boyu
+            var car = PlaceModel("OyuncakAraba", town.transform, Vector3.zero, 0f, 1f, collide, false);
+            car.name = "Kasaba Arabası " + (i + 1);
+            car.transform.rotation = Quaternion.Euler(0f, Mathf.Atan2(d.x, d.z) * Mathf.Rad2Deg, 0f);
+            car.transform.localScale = Vector3.one * (len / 5.9f) / town.transform.lossyScale.x;
+            car.transform.position = a.position;
+            var rs = car.GetComponentsInChildren<Renderer>();
+            if (rs.Length > 0)
+            {
+                Bounds bb = rs[0].bounds; foreach (var r in rs) bb.Encapsulate(r.bounds);
+                car.transform.position += Vector3.up * (a.position.y - bb.min.y);
+            }
+            SwapMaterial(car, "M_Araba_Boya", Mat("Araba_Boya_Kasaba_" + i, cols[i % cols.Length], null, 0.8f));
+            HideChildren(car, "Kurma_Anahtari");
+        }
     }
 
     static Transform Find(GameObject root, string name)
@@ -1617,6 +1668,11 @@ public static class GolfKurucu
                 ti.SaveAndReimport();
             }
         }
+        foreach (var n in new[] { "robot_ring" })
+        {
+            var ti = AssetImporter.GetAtPath(Root + "/Textures/" + n + ".png") as TextureImporter;
+            if (ti != null && (!ti.alphaIsTransparency || ti.wrapMode != TextureWrapMode.Clamp)) { ti.alphaIsTransparency = true; ti.wrapMode = TextureWrapMode.Clamp; ti.SaveAndReimport(); }
+        }
         foreach (var n in new[] { "golf_fairway", "golf_rough", "golf_green", "golf_sand", "golf_path" })
         {
             var ti = AssetImporter.GetAtPath(Root + "/Textures/" + n + ".png") as TextureImporter;
@@ -1932,6 +1988,9 @@ public static class GolfKurucu
         var hped = Pedestal(bg, "El Kaidesi", handPos, new Vector3(2.4f, 0.8f, 2.4f));
         var wave = Face("SallayanEl", bg, handPos + Vector3.up * 0.8f, YawToward(handPos, camGo.transform.position), 1.2f, false);
         AnimateModel(wave, "SallayanEl");
+        // Oyuncak Kasaba (Mahalle.blend) arka planda
+        var menuTown = PlaceModel("OyuncakKasaba", bg, new Vector3(17f, -0.62f, 36f), -18f, 0.42f, false);
+        TownCars(menuTown, false);
 
         // Dönen putting green adası
         var display = new GameObject("Putting Green Adası");
@@ -2001,6 +2060,31 @@ public static class GolfKurucu
         PlaceModel("AltinKupa", display.transform, new Vector3(6.2f, 0.7f, -3.6f), 200f, 2.4f, false, false);
         PlaceModel("RobotCimBicici", display.transform, new Vector3(-2.5f, 0.75f, 6.5f), 210f, 1f, false, false);
         PlaceModel("Bank", display.transform, new Vector3(2f, 0f, 7.6f), 180f, 1f, false);
+        // Mert'in modelleri adada: oyuncak araba, masada kakao kupası, kaidede ahşap manken eli
+        var mcar = PlaceModel("OyuncakAraba", display.transform, new Vector3(-7.2f, 0f, 0.4f), 60f, 0.55f, false);
+        SwapMaterial(mcar, "M_Araba_Boya", Mat("Araba_Boya_0", new Color(0.86f, 0.18f, 0.16f), null, 0.8f));
+        var mtable = PlaceModel("TerasMasasi", display.transform, new Vector3(2.8f, 0f, -6.4f), 20f, 1f, false);
+        var mmug = PlaceModel("KakaoKupasi", mtable.transform, new Vector3(0.05f, 0.77f, 0f), 30f, 0.2f, false);
+        var mrs = mmug.GetComponentsInChildren<Renderer>();
+        Bounds mb = mrs[0].bounds; foreach (var r in mrs) if (r.name.Contains("Kupa")) mb = r.bounds;
+        var msteam = MakeSteam(mmug.transform, 0.2f);
+        msteam.transform.position = new Vector3(mb.center.x, mb.max.y + 0.02f, mb.center.z);
+        var mped = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        Object.DestroyImmediate(mped.GetComponent<Collider>());
+        mped.transform.SetParent(display.transform, false);
+        mped.transform.localScale = new Vector3(1.4f, 0.3f, 1.4f);
+        mped.transform.localPosition = new Vector3(7.4f, 0.3f, 3f);
+        mped.GetComponent<Renderer>().sharedMaterial = Mat("Tas_Kaide", new Color(0.74f, 0.71f, 0.66f), null, 0.15f);
+        var mhand = PlaceModel("DevMankenEli", display.transform, new Vector3(7.4f, 0.6f, 3f), 200f, 1.0f, false, false);
+        AnimateModel(mhand, "DevMankenEli");
+
+        // Karton figür (Kemik.blend): adada golfçünün yanında seyirci panosu
+        var mfig = Face("KartonFigur", display.transform, new Vector3(-3.4f, 0f, -1.2f), 200f, 0.42f, false);
+        SwapMaterial(mfig, "M_Karton_Gomlek", Mat("Karton_Gomlek_1", new Color(0.98f, 0.80f, 0.30f), null, 0.15f));
+        mmug.transform.localScale = Vector3.one * 0.26f;
+
+        // ---- Galeri sahnesi (Blender Modellerim): menüden uzakta, kendi ışığıyla
+        var gal = BuildGalleryStage(out Transform turntable, out GameObject[] galModels);
 
         var music = new GameObject("Müzik").AddComponent<AudioSource>();
         music.clip = Clip("golf_music_loop");
@@ -2017,21 +2101,28 @@ public static class GolfKurucu
         var mm = canvas.gameObject.AddComponent<MainMenu>();
         mm.gameSceneName = "Oyun";
 
-        var title = MakeText(canvas.transform, "Başlık", "Altın Bayrak", 156, UiGold, Vector2.zero, new Vector2(1400f, 190f));
+        var menuUI = new GameObject("Menü İçeriği", typeof(RectTransform));
+        menuUI.transform.SetParent(canvas.transform, false);
+        var murt = menuUI.GetComponent<RectTransform>();
+        murt.anchorMin = Vector2.zero; murt.anchorMax = Vector2.one; murt.offsetMin = Vector2.zero; murt.offsetMax = Vector2.zero;
+        var mt = menuUI.transform;
+
+        var title = MakeText(mt, "Başlık", "Altın Bayrak", 156, UiGold, Vector2.zero, new Vector2(1400f, 190f));
         Anchor(title.rectTransform, new Vector2(0.5f, 1f), new Vector2(0f, -50f));
         title.outlineWidth = 0.28f; title.outlineColor = new Color(0.06f, 0.24f, 0.13f);
-        var sub = MakeText(canvas.transform, "Alt Başlık", "Yeşiltepe Golf Kulübü  •  60 saniyede 10 dev topu 10 deliğe sok!", 36, Color.white, Vector2.zero, new Vector2(1600f, 60f));
+        var sub = MakeText(mt, "Alt Başlık", "Yeşiltepe Golf Kulübü  •  60 saniyede 10 dev topu 10 deliğe sok!", 36, Color.white, Vector2.zero, new Vector2(1600f, 60f));
         Anchor(sub.rectTransform, new Vector2(0.5f, 1f), new Vector2(0f, -240f));
         sub.outlineWidth = 0.25f; sub.outlineColor = new Color(0.06f, 0.24f, 0.13f);
 
-        var bPlay = MakeButton(canvas.transform, "TURNUVA (60 sn)", BtnGreen, new Vector2(-560f, 60f), new Vector2(460f, 106f), sfx, click);
+        var bPlay = MakeButton(mt, "TURNUVA (60 sn)", BtnGreen, new Vector2(-560f, 85f), new Vector2(460f, 106f), sfx, click);
         UnityEventTools.AddPersistentListener(bPlay.onClick, mm.PlayGame);
-        var bFree = MakeButton(canvas.transform, "Serbest Dolaşma", BtnNavy, new Vector2(-560f, -60f), new Vector2(460f, 96f), sfx, click);
+        var bFree = MakeButton(mt, "Serbest Dolaşma", BtnNavy, new Vector2(-560f, -25f), new Vector2(460f, 92f), sfx, click);
         UnityEventTools.AddPersistentListener(bFree.onClick, mm.PlayFreeRoam);
-        var bHow = MakeButton(canvas.transform, "Nasıl Oynanır", BtnGold, new Vector2(-560f, -170f), new Vector2(460f, 96f), sfx, click);
+        var bModels = MakeButton(mt, "Blender Modellerim", new Color(0.45f, 0.30f, 0.62f), new Vector2(-560f, -130f), new Vector2(460f, 92f), sfx, click);
+        var bHow = MakeButton(mt, "Nasıl Oynanır", BtnGold, new Vector2(-560f, -235f), new Vector2(460f, 92f), sfx, click);
         UnityEventTools.AddPersistentListener(bHow.onClick, mm.OpenHowTo);
-        var bQuit = MakeButton(canvas.transform, "Çıkış", BtnRed, new Vector2(-560f, -280f), new Vector2(460f, 96f), sfx, click);
-        var best = MakeText(canvas.transform, "En İyi Süre", "", 30, UiGold, new Vector2(-560f, 150f), new Vector2(460f, 46f));
+        var bQuit = MakeButton(mt, "Çıkış", BtnRed, new Vector2(-560f, -340f), new Vector2(460f, 92f), sfx, click);
+        var best = MakeText(mt, "En İyi Süre", "", 30, UiGold, new Vector2(-560f, 175f), new Vector2(460f, 46f));
         best.outlineWidth = 0.25f; best.outlineColor = new Color(0.06f, 0.24f, 0.13f);
         mm.bestTimeText = best;
         UnityEventTools.AddPersistentListener(bQuit.onClick, mm.QuitGame);
@@ -2041,6 +2132,41 @@ public static class GolfKurucu
         Anchor(credit.rectTransform, new Vector2(0.5f, 0f), new Vector2(0f, 40f));
         credit.outlineWidth = 0.25f; credit.outlineColor = new Color(0.06f, 0.24f, 0.13f);
 
+        // Galeri arayüzü
+        var galUI = new GameObject("Galeri Arayüzü", typeof(RectTransform));
+        galUI.transform.SetParent(canvas.transform, false);
+        var gurt = galUI.GetComponent<RectTransform>();
+        gurt.anchorMin = Vector2.zero; gurt.anchorMax = Vector2.one; gurt.offsetMin = Vector2.zero; gurt.offsetMax = Vector2.zero;
+        var gHead = MakeText(galUI.transform, "Başlık", "Blender Modellerim", 92, UiGold, Vector2.zero, new Vector2(1400f, 120f));
+        Anchor(gHead.rectTransform, new Vector2(0.5f, 1f), new Vector2(0f, -30f));
+        gHead.outlineWidth = 0.28f; gHead.outlineColor = new Color(0.06f, 0.24f, 0.13f);
+        var gSub = MakeText(galUI.transform, "Alt Başlık", "Mert Demir'in Blender klasöründen geliştirilip oyuna eklenen modeller", 32, Color.white, Vector2.zero, new Vector2(1600f, 50f));
+        Anchor(gSub.rectTransform, new Vector2(0.5f, 1f), new Vector2(0f, -150f));
+        gSub.outlineWidth = 0.25f; gSub.outlineColor = new Color(0.06f, 0.24f, 0.13f);
+        var info = Panel(galUI.transform, "Bilgi Kartı", new Color(0.99f, 0.98f, 0.95f, 0.96f), new Vector2(0.5f, 0f), new Vector2(0f, 24f), new Vector2(1320f, 300f));
+        var gTitle = MakeText(info.transform, "Model Adı", "", 52, new Color(0.10f, 0.36f, 0.22f), new Vector2(0f, 104f), new Vector2(900f, 66f));
+        var gCount = MakeText(info.transform, "Sayaç", "", 30, new Color(0.45f, 0.30f, 0.62f), new Vector2(570f, 108f), new Vector2(160f, 44f));
+        var gDetail = MakeText(info.transform, "Açıklama", "", 26, CardText, new Vector2(0f, -32f), new Vector2(1250f, 200f));
+        var bPrev = MakeButton(galUI.transform, "<", BtnGreen, new Vector2(-760f, 60f), new Vector2(130f, 130f), sfx, click);
+        var bNext = MakeButton(galUI.transform, ">", BtnGreen, new Vector2(760f, 60f), new Vector2(130f, 130f), sfx, click);
+        var bBack = MakeButton(galUI.transform, "Menüye Dön", BtnNavy, new Vector2(-740f, 440f), new Vector2(330f, 86f), sfx, click);
+
+        var mg = canvas.gameObject.AddComponent<ModelGaleri>();
+        mg.turntable = turntable;
+        mg.models = galModels;
+        mg.titles = GalleryTitles;
+        mg.details = GalleryDetails;
+        mg.titleText = gTitle; mg.detailText = gDetail; mg.counterText = gCount;
+        mg.galleryUI = galUI; mg.menuUI = menuUI;
+        mg.cam = camGo.transform;
+        mg.galleryCamPos = GalleryPos + new Vector3(0f, 3.3f, -9.8f);
+        mg.galleryLookAt = GalleryPos + new Vector3(0f, 0.55f, 0f);
+        UnityEventTools.AddPersistentListener(bModels.onClick, mg.Open);
+        UnityEventTools.AddPersistentListener(bPrev.onClick, mg.Prev);
+        UnityEventTools.AddPersistentListener(bNext.onClick, mg.Next);
+        UnityEventTools.AddPersistentListener(bBack.onClick, mg.Close);
+        galUI.SetActive(false);
+
         // Nasıl oynanır paneli
         var how = Overlay(canvas.transform, "Nasıl Oynanır Paneli");
         var card = Panel(how.transform, "Kart", new Color(0.99f, 0.98f, 0.95f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(1220f, 860f));
@@ -2049,7 +2175,7 @@ public static class GolfKurucu
             "Yeşiltepe Golf Kulübü'nün <b>Altın Bayrak Turnuvası</b>'ndasın! Bu turnuvada sopa yok: dev golf toplarını elinle sürüp <b>60 saniye</b> içinde <b>10 numaralı deliğe</b> sokmalısın.\n\n" +
             "<b>W A S D / Yön Tuşları:</b>  Yürü\n" +
             "<b>Topu it:</b>  Topa doğru yürü, kollarınla iterek bayraklı deliğe yuvarla\n" +
-            "<b>Robot çim biçiciler:</b>  Yaklaşınca seni kovalar, çarparsa geri itilirsin\n" +
+            "<b>Robot çim biçiciler:</b>  Turuncu halkalarına girersen fark eder, gözleri kırmızıya döner ve seni kovalar\n" +
             "<b>ESC / P:</b>  Duraklat\n" +
             "<b>Serbest Dolaşma:</b>  Süre yok, robotlar kovalamaz; Shift ile hızlı yürü\n\n" +
             "Korna çalmadan 10 topu da deliğe sokarsan <b>Altın Bayrak Kupası</b> senin!",
@@ -2063,6 +2189,96 @@ public static class GolfKurucu
 
         MakeEventSystem();
         EditorSceneManager.SaveScene(scene, Root + "/Scenes/AnaMenu.unity");
+    }
+
+    // =====================================================================
+    //  GALERİ: Mert'in Blender modelleri (ana menü)
+    // =====================================================================
+    static readonly Vector3 GalleryPos = new Vector3(90f, 0f, 0f);
+    static readonly string[] GalleryModels = { "OyuncakKasaba", "OyuncakAraba", "KakaoKupasi", "KartonFigur", "DevMankenEli", "SallayanEl" };
+    static readonly string[] GalleryTitles = { "Oyuncak Kasaba", "Oyuncak Araba", "Kakao Kupası", "Karton Figür", "Ahşap Manken Eli", "El Sallayan El" };
+    static readonly string[] GalleryDetails =
+    {
+        "<b>Dosya:</b> Mahalle.blend\nEvler, apartmanlar, ağaçlar, sokak lambaları ve yollar; pencere, kapı, çatı ve ışık detaylarıyla geliştirildi.\n<b>Oyunda:</b> Kulübün güneyinde, yolun ucunda; bozuk arabaları kaldırıldı, sokaklarına oyuncak arabalar kondu.",
+        "<b>Dosya:</b> Başlıksız.blend\nKurma anahtarlı oyuncak araba; farlar, stop lambaları, jantlar, tampon ve cam detayları eklendi.\n<b>Oyunda:</b> Kulübün otoparkında, kasabanın sokaklarında ve ana menüdeki adada.",
+        "<b>Dosya:</b> untitled.blend\nMarshmallowlu kakao kupası ve kurabiye tabağı; parlak sır ve kalp deseni eklendi.\n<b>Oyunda:</b> Kulüp terasındaki masanın üstünde (buharı tüter) ve ana menüdeki masada.",
+        "<b>Dosya:</b> Kemik.blend\nArkası destekli karton insan figürü; boyalı bölgeler, yüz ve destek ayağı eklendi.\n<b>Oyunda:</b> Saha ipinin arkasında hareketsiz seyirci panoları ve kasabanın kaldırımlarında.",
+        "<b>Dosya:</b> Hand2.blend\nEklemli ahşap manken eli; ahşap materyaller ve parmakların kıvrıldığı animasyonuyla.\n<b>Oyunda:</b> Pro Shop vitrininin önünde kaide üzerinde ve ana menüdeki adada.",
+        "<b>Dosya:</b> EL.blend\nOyuncak bebek teninde, yumuşatılmış ve el sallayan animasyonlu el.\n<b>Oyunda:</b> Giriş kapısında karşılama heykeli ve ana menünün arka planında.",
+    };
+
+    static GameObject BuildGalleryStage(out Transform turntable, out GameObject[] models)
+    {
+        var root = new GameObject("Galeri (Blender Modellerim)");
+        root.transform.position = GalleryPos;
+        var floor = GameObject.CreatePrimitive(PrimitiveType.Plane);
+        floor.name = "Zemin";
+        floor.transform.SetParent(root.transform, false);
+        floor.transform.localScale = new Vector3(6f, 1f, 6f);
+        floor.GetComponent<Renderer>().sharedMaterial = Mat("Galeri_Zemin", new Color(0.20f, 0.36f, 0.24f), null, 0.15f);
+        var wall = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        wall.name = "Fon";
+        wall.transform.SetParent(root.transform, false);
+        wall.transform.localPosition = new Vector3(0f, 7f, 10f);
+        wall.transform.localScale = new Vector3(50f, 16f, 0.5f);
+        wall.GetComponent<Renderer>().sharedMaterial = Mat("Galeri_Fon", new Color(0.09f, 0.22f, 0.15f), null, 0.1f);
+        var ped = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        ped.name = "Dönen Kaide";
+        ped.transform.SetParent(root.transform, false);
+        ped.transform.localPosition = new Vector3(0f, 0.25f, 0f);
+        ped.transform.localScale = new Vector3(6f, 0.25f, 6f);
+        ped.GetComponent<Renderer>().sharedMaterial = Mat("Tas_Kaide", new Color(0.74f, 0.71f, 0.66f), null, 0.15f);
+        var trim = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        trim.name = "Altın Şerit";
+        trim.transform.SetParent(root.transform, false);
+        trim.transform.localPosition = new Vector3(0f, 0.40f, 0f);
+        trim.transform.localScale = new Vector3(6.12f, 0.04f, 6.12f);
+        var g = Mat("Altin_Parlak", new Color(1f, 0.78f, 0.3f), null, 0.7f);
+        g.SetFloat("_Metallic", 0.55f);
+        trim.GetComponent<Renderer>().sharedMaterial = g;
+        turntable = new GameObject("Döner Tabla").transform;
+        turntable.SetParent(root.transform, false);
+        turntable.localPosition = new Vector3(0f, 0.5f, 0f);
+
+        var key = new GameObject("Ana Işık").AddComponent<Light>();
+        key.transform.SetParent(root.transform, false);
+        key.type = LightType.Spot; key.spotAngle = 60f; key.range = 24f; key.intensity = 12f; key.color = new Color(1f, 0.95f, 0.85f);
+        key.shadows = LightShadows.Soft;
+        key.transform.localPosition = new Vector3(-3f, 8f, -6f);
+        key.transform.rotation = Quaternion.LookRotation((GalleryPos + Vector3.up * 1.2f) - key.transform.position);
+        var rim = new GameObject("Arka Işık").AddComponent<Light>();
+        rim.transform.SetParent(root.transform, false);
+        rim.type = LightType.Spot; rim.spotAngle = 70f; rim.range = 20f; rim.intensity = 8f; rim.color = new Color(0.75f, 0.85f, 1f);
+        rim.transform.localPosition = new Vector3(4f, 6f, 6f);
+        rim.transform.rotation = Quaternion.LookRotation((GalleryPos + Vector3.up * 1.2f) - rim.transform.position);
+
+        models = new GameObject[GalleryModels.Length];
+        for (int i = 0; i < GalleryModels.Length; i++)
+        {
+            string n = GalleryModels[i];
+            bool wide = n == "OyuncakKasaba";
+            var m = ShowcaseModel(n, turntable, wide ? 3.0f : 2.6f, wide ? 6.4f : (n == "SallayanEl" ? 9f : 4.4f));
+            if (n == "DevMankenEli" || n == "SallayanEl") AnimateModel(m, n);
+            if (n == "OyuncakKasaba") TownCars(m, false);
+            models[i] = m;
+        }
+        return root;
+    }
+
+    /// <summary>Modeli döner tablanın ortasına oturtur ve belirli bir boyuta sığdırır.</summary>
+    static GameObject ShowcaseModel(string n, Transform turntable, float maxH, float maxW)
+    {
+        var w = PlaceModel(n, turntable, Vector3.zero, 0f, 1f, false, false);
+        var rs = w.GetComponentsInChildren<Renderer>();
+        if (rs.Length == 0) return w;
+        Bounds b = rs[0].bounds; foreach (var r in rs) b.Encapsulate(r.bounds);
+        float s = Mathf.Min(maxH / b.size.y, maxW / Mathf.Max(b.size.x, b.size.z));
+        w.transform.localScale = Vector3.one * s;
+        b = rs[0].bounds; foreach (var r in rs) b.Encapsulate(r.bounds);
+        Vector3 tp = turntable.position;
+        w.transform.position += new Vector3(tp.x - b.center.x, tp.y - b.min.y + 0.01f, tp.z - b.center.z);
+        foreach (var smr in w.GetComponentsInChildren<SkinnedMeshRenderer>()) smr.updateWhenOffscreen = true;
+        return w;
     }
 
     // =====================================================================

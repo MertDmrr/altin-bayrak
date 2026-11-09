@@ -13,6 +13,9 @@ yaklaşınca seni kovalar ve çarparsa geri iter.
 - **Kontroller:** W A S D / Yön tuşları: yürü · ESC / P: duraklat · Shift: hızlı yürü (Serbest Dolaşma)
 - **Modlar:** Turnuva (60 saniye, ödevin asıl modu) ve Serbest Dolaşma (süresiz, robotlar kovalamaz)
 - Mini harita, en iyi süre (rekor) kaydı, canlı skor tabelası
+- Ana menüde **Blender Modellerim** galerisi: Mert'in 6 modeli dönen kaidede, dosya adlarıyla
+- Robot yapay zekâsı: tehlike halkası, uyarı ("!"), tahminli kovalama, sersemleme, "?" ile vazgeçme
+- Sahada NPC yok: hareket eden araç veya insan bulunmaz
 - **Kazanma:** 60 saniye dolmadan 10 topun hepsi delikte
 - **Kaybetme:** Süre dolar, turnuva kornası çalar
 
