@@ -73,7 +73,7 @@ public class GameManager : MonoBehaviour
         if (FreeRoam)
         {
             if (timerLabel) timerLabel.text = "MOD";
-            if (hintText) hintText.text = "WASD: Yürü     Shift: Hızlı Yürü     ESC / P: Duraklat";
+            if (hintText) hintText.text = "WASD / Yön Tuşları: Yürü     ESC / P: Duraklat";
             ShowMessage("Serbest Dolaşma: süre yok, sahayı keşfet!", 3f);
         }
         else

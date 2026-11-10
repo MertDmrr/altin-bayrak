@@ -144,8 +144,7 @@ PlayerSettings:
   visionOSBundleVersion: 1.0
   tvOSBundleVersion: 1.0
   bundleVersion: 1.0
-  preloadedAssets:
-  - {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
+  preloadedAssets: []
   metroInputSource: 0
   wsaTransparentSwapchain: 0
   m_HolographicPauseOnTrackingLoss: 1
@@ -168,7 +167,7 @@ PlayerSettings:
   androidMinAspectRatio: 1
   applicationIdentifier:
     Android: com.UnityTechnologies.com.unity.template.urpblank
-    Standalone: com.Unity-Technologies.com.unity.template.urp-blank
+    Standalone: com.MertDemir.AltinBayrak
     iPhone: com.Unity-Technologies.com.unity.template.urp-blank
   buildNumber:
     Standalone: 0
@@ -854,14 +853,14 @@ PlayerSettings:
   editorAssembliesCompatibilityLevel: 1
   m_RenderingPath: 1
   m_MobileRenderingPath: 1
-  metroPackageName: OyuncakRuyasi
+  metroPackageName: AltinBayrak
   metroPackageVersion: 
   metroCertificatePath: 
   metroCertificatePassword: 
   metroCertificateSubject: 
   metroCertificateIssuer: 
   metroCertificateNotAfter: 0000000000000000
-  metroApplicationDescription: OyuncakRuyasi
+  metroApplicationDescription: "Alt\u0131n Bayrak - Mert Demir (2506127004)"
   wsaImages: {}
   metroTileShortName: 
   metroTileShowName: 0
@@ -935,7 +934,7 @@ PlayerSettings:
   cloudProjectId: f6eedd2d-e60a-4ef2-a4bd-7a5f5abebc7f
   framebufferDepthMemorylessMode: 0
   qualitySettingsNames: []
-  projectName: OyuncakRuyasi
+  projectName: AltinBayrak
   organizationId: m3rtdmrr
   cloudEnabled: 0
   legacyClampBlendShapeWeights: 0

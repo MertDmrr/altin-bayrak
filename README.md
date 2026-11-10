@@ -12,9 +12,9 @@ Yeşiltepe Golf Kulübü'nün Altın Bayrak Turnuvası: 60 saniye içinde sahaya
 numaralı 10 deliğe sür. Küp gövdeli robot çim biçiciler (hocanın `RandomCubeMovement` kodu) sahada dolaşır,
 yaklaşınca seni kovalar ve çarparsa geri iter.
 
-- **Kontroller:** W A S D / Yön tuşları: yürü · ESC / P: duraklat · Shift: hızlı yürü (Serbest Dolaşma)
+- **Kontroller:** W A S D / Yön tuşları: yürü · ESC / P: duraklat
 - **Modlar:** Turnuva (60 saniye, ödevin asıl modu) ve Serbest Dolaşma (süresiz, robotlar kovalamaz)
-- Mini harita, en iyi süre (rekor) kaydı, canlı skor tabelası
+- En iyi süre (rekor) kaydı, canlı skor tabelası
 - Ana menüde **Blender Modellerim** galerisi: Mert'in 6 modeli dönen kaidede, dosya adlarıyla
 - Robot yapay zekâsı: tehlike halkası, uyarı ("!"), tahminli kovalama, sersemleme, "?" ile vazgeçme
 - Sahada NPC yok: hareket eden araç veya insan bulunmaz
@@ -23,7 +23,7 @@ yaklaşınca seni kovalar ve çarparsa geri iter.
 
 ## Ödev yönergesi
 - Hocanın T-pose karakter modeli (Blender'da iskelet + golfçü kıyafeti: beyaz polo, argyle yelek, haki pantolon, şapka, eldiven), Animator Controller: Idle ↔ Walk
-- Üstten (top-down) üçüncü şahıs kamera, açık dünya (Unity Terrain 200×200 m)
+- Üstten (top-down) üçüncü şahıs kamera, sarsıntısız (SmoothDamp) takip; açık dünya (Unity Terrain 200×200 m)
 - 10 küre, 10 delik (socket), fiziksel itme, 60 saniye
 - Hocanın `RandomCubeMovement.cs` kodu değiştirilmeden kullanıldı (`Assets/_Game/Scripts/Hoca`)
 

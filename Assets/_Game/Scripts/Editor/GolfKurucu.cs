@@ -233,7 +233,6 @@ public static class GolfKurucu
         spawner.avoidPoints = avoid.ToArray();
         spawner.avoidRadius = 5f;
 
-        miniMapSprite = MakeMiniMapSprite(terrain, MiniMapHalf);
         BuildGameUI(gm, sfx);
 
         // Dünya sınırı (görünmez duvarlar)
@@ -511,41 +510,6 @@ public static class GolfKurucu
         m.SetTextureScale("_BaseMap", Vector2.one);
         m.SetTextureOffset("_BaseMap", Vector2.zero);
         return m;
-    }
-
-    /// <summary>Mini harita arka planı: terrain doku ağırlıklarından üstten görünüm resmi üretir.</summary>
-    static Sprite MakeMiniMapSprite(Terrain terrain, float half)
-    {
-        int N = 256;
-        var td = terrain.terrainData;
-        var tex = new Texture2D(N, N, TextureFormat.RGBA32, false);
-        Color[] layerCols = { new Color(0.22f, 0.40f, 0.17f), new Color(0.38f, 0.62f, 0.27f), new Color(0.92f, 0.84f, 0.62f), new Color(0.80f, 0.79f, 0.75f) };
-        int ar = td.alphamapResolution;
-        float[,,] al = td.GetAlphamaps(0, 0, ar, ar);
-        Vector3 tp = terrain.transform.position;
-        for (int y = 0; y < N; y++)
-            for (int x = 0; x < N; x++)
-            {
-                float wx = -half + (x + 0.5f) / N * half * 2f, wz = -half + (y + 0.5f) / N * half * 2f;
-                int ax = Mathf.Clamp(Mathf.FloorToInt((wx - tp.x) / td.size.x * ar), 0, ar - 1);
-                int az = Mathf.Clamp(Mathf.FloorToInt((wz - tp.z) / td.size.z * ar), 0, ar - 1);
-                Color c = Color.black;
-                for (int k = 0; k < layerCols.Length && k < td.alphamapLayers; k++) c += layerCols[k] * al[az, ax, k];
-                if (SdPond(new Vector2(wx, wz)) < 0f) c = new Color(0.30f, 0.55f, 0.75f);
-                c.a = 1f;
-                tex.SetPixel(x, y, c);
-            }
-        tex.Apply();
-        string path = GenDir + "/MiniHarita.png";
-        File.WriteAllBytes(path, tex.EncodeToPNG());
-        Object.DestroyImmediate(tex);
-        AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
-        var ti = (TextureImporter)AssetImporter.GetAtPath(path);
-        ti.textureType = TextureImporterType.Sprite;
-        ti.spriteImportMode = SpriteImportMode.Single;
-        ti.mipmapEnabled = false;
-        ti.SaveAndReimport();
-        return AssetDatabase.LoadAssetAtPath<Sprite>(path);
     }
 
     static TerrainLayer Layer(string name, string tex, float tile, float smooth)
@@ -1069,12 +1033,14 @@ public static class GolfKurucu
             for (int k = 0; k < 3; k++)
             {
                 Vector3 tp = deck + right * offs[k] + tFront * 0.2f;
+                tp.y -= 0.05f * club.transform.lossyScale.y;   // TerasNoktasi zeminin 5 cm üstünde: masa tam döşemeye bassın
                 var table = PlaceModel("TerasMasasi", world, tp, k * 25f, 1f, true, false);
                 table.transform.position = tp;
                 if (k == 1)
                 {
-                    var mug = PlaceModel("KakaoKupasi", table.transform, new Vector3(0.05f, 0.77f, 0f), 30f, 0.13f, false);
-                    var steam = MakeSteam(mug.transform, 0.12f);
+                    // kupa masa tablasının üstünde (tabla üstü 0.765 m), şemsiye direğinden uzakta, gerçek boyda (~14 cm)
+                    var mug = PlaceModel("KakaoKupasi", table.transform, MugOnTable, 35f, MugScale, false, false);
+                    var steam = MakeSteam(mug.transform, 0.07f);
                     var rs = mug.GetComponentsInChildren<Renderer>();
                     Bounds cupB = rs[0].bounds;
                     foreach (var r in rs) if (r.name.Contains("Kupa")) cupB = r.bounds;
@@ -1424,7 +1390,13 @@ public static class GolfKurucu
         }
     }
 
-    static GameObject MakeSteam(Transform parent, float scale)
+    /// <summary>Kakao kupasının masa üstündeki yeri (TerasMasasi yerel): tabla üstü y=0.765, şemsiye direğinden ~0.25 m uzakta.</summary>
+    static readonly Vector3 MugOnTable = new Vector3(0.24f, 0.766f, -0.1f);
+    /// <summary>Kupa modeli 2 birim yüksek: 0.07 ölçek = ~14 cm'lik gerçek boy kupa.</summary>
+    const float MugScale = 0.07f;
+
+    /// <summary>Kupadan yükselen buhar. size: tek buhar topunun boyu (metre).</summary>
+    static GameObject MakeSteam(Transform parent, float size)
     {
         var steam = new GameObject("Buhar");
         steam.transform.SetParent(parent, false);
@@ -1432,14 +1404,14 @@ public static class GolfKurucu
         var ps = steam.AddComponent<ParticleSystem>();
         ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
         var main = ps.main; main.loop = true; main.playOnAwake = true;
-        main.startLifetime = 2.6f; main.startSpeed = 0.35f;
-        main.startSize = new ParticleSystem.MinMaxCurve(0.12f, 0.2f); main.maxParticles = 30;
+        main.startLifetime = 2.2f; main.startSpeed = size * 2f;
+        main.startSize = new ParticleSystem.MinMaxCurve(size * 0.6f, size); main.maxParticles = 30;
         main.startRotation = new ParticleSystem.MinMaxCurve(0f, Mathf.PI * 2f);
         main.startColor = new Color(1f, 1f, 1f, 0.6f);
         main.scalingMode = ParticleSystemScalingMode.Shape;
         main.simulationSpace = ParticleSystemSimulationSpace.World;
         var em = ps.emission; em.rateOverTime = 7f;
-        var sh = ps.shape; sh.shapeType = ParticleSystemShapeType.Cone; sh.angle = 10f; sh.radius = 0.04f;
+        var sh = ps.shape; sh.shapeType = ParticleSystemShapeType.Cone; sh.angle = 10f; sh.radius = size * 0.35f;
         var sz = ps.sizeOverLifetime; sz.enabled = true; sz.size = new ParticleSystem.MinMaxCurve(1f, AnimationCurve.Linear(0f, 0.6f, 1f, 1.8f));
         var col = ps.colorOverLifetime; col.enabled = true;
         var g = new Gradient();
@@ -1832,9 +1804,6 @@ public static class GolfKurucu
     // =====================================================================
     //  ARAYÜZ (Oyun)
     // =====================================================================
-    const float MiniMapHalf = 34f;
-    static Sprite miniMapSprite;
-
     static void BuildGameUI(GameManager gm, AudioSource sfx)
     {
         var canvas = MakeCanvas("Arayüz (HUD)");
@@ -1862,23 +1831,6 @@ public static class GolfKurucu
         hint.outlineWidth = 0.22f; hint.outlineColor = new Color(0.05f, 0.18f, 0.1f);
         gm.hintText = hint;
 
-        // Mini harita (sağ alt)
-        var mapBox = Panel(canvas.transform, "Mini Harita", UiGreen, new Vector2(1f, 0f), new Vector2(-24f, 20f), new Vector2(290f, 318f));
-        MakeText(mapBox.transform, "Etiket", "SAHA", 24, UiGold, new Vector2(0f, 136f), new Vector2(260f, 34f));
-        var mapImg = new GameObject("Harita", typeof(RectTransform), typeof(Image));
-        mapImg.transform.SetParent(mapBox.transform, false);
-        var mi = mapImg.GetComponent<Image>();
-        mi.sprite = miniMapSprite;
-        mi.raycastTarget = false;
-        var mrt = mapImg.GetComponent<RectTransform>();
-        mrt.anchoredPosition = new Vector2(0f, -14f);
-        mrt.sizeDelta = new Vector2(262f, 262f);
-        var mh = mapBox.AddComponent<MiniHarita>();
-        mh.area = mrt;
-        mh.dotSprite = SpriteAt("ui_dot");
-        mh.arrowSprite = SpriteAt("ui_arrow");
-        mh.flagSprite = SpriteAt("icon_flag");
-        mh.worldHalfSize = MiniMapHalf;
         var credit = MakeText(canvas.transform, "Hazırlayan", "Mert Demir  •  2506127004  •  3B Oyun Geliştirme Stüdyosu", 22, new Color(1f, 1f, 1f, 0.92f), Vector2.zero, new Vector2(900f, 34f));
         Anchor(credit.rectTransform, new Vector2(0f, 0f), new Vector2(24f, 16f));
         credit.alignment = TextAlignmentOptions.Left;
@@ -2064,10 +2016,10 @@ public static class GolfKurucu
         var mcar = PlaceModel("OyuncakAraba", display.transform, new Vector3(-7.2f, 0f, 0.4f), 60f, 0.55f, false);
         SwapMaterial(mcar, "M_Araba_Boya", Mat("Araba_Boya_0", new Color(0.86f, 0.18f, 0.16f), null, 0.8f));
         var mtable = PlaceModel("TerasMasasi", display.transform, new Vector3(2.8f, 0f, -6.4f), 20f, 1f, false);
-        var mmug = PlaceModel("KakaoKupasi", mtable.transform, new Vector3(0.05f, 0.77f, 0f), 30f, 0.2f, false);
+        var mmug = PlaceModel("KakaoKupasi", mtable.transform, MugOnTable, 35f, MugScale, false, false);
         var mrs = mmug.GetComponentsInChildren<Renderer>();
         Bounds mb = mrs[0].bounds; foreach (var r in mrs) if (r.name.Contains("Kupa")) mb = r.bounds;
-        var msteam = MakeSteam(mmug.transform, 0.2f);
+        var msteam = MakeSteam(mmug.transform, 0.07f);
         msteam.transform.position = new Vector3(mb.center.x, mb.max.y + 0.02f, mb.center.z);
         var mped = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         Object.DestroyImmediate(mped.GetComponent<Collider>());
@@ -2081,7 +2033,6 @@ public static class GolfKurucu
         // Karton figür (Kemik.blend): adada golfçünün yanında seyirci panosu
         var mfig = Face("KartonFigur", display.transform, new Vector3(-3.4f, 0f, -1.2f), 200f, 0.42f, false);
         SwapMaterial(mfig, "M_Karton_Gomlek", Mat("Karton_Gomlek_1", new Color(0.98f, 0.80f, 0.30f), null, 0.15f));
-        mmug.transform.localScale = Vector3.one * 0.26f;
 
         // ---- Galeri sahnesi (Blender Modellerim): menüden uzakta, kendi ışığıyla
         var gal = BuildGalleryStage(out Transform turntable, out GameObject[] galModels);
@@ -2177,7 +2128,7 @@ public static class GolfKurucu
             "<b>Topu it:</b>  Topa doğru yürü, kollarınla iterek bayraklı deliğe yuvarla\n" +
             "<b>Robot çim biçiciler:</b>  Turuncu halkalarına girersen fark eder, gözleri kırmızıya döner ve seni kovalar\n" +
             "<b>ESC / P:</b>  Duraklat\n" +
-            "<b>Serbest Dolaşma:</b>  Süre yok, robotlar kovalamaz; Shift ile hızlı yürü\n\n" +
+            "<b>Serbest Dolaşma:</b>  Süre yok, robotlar kovalamaz; sahayı rahatça gez\n\n" +
             "Korna çalmadan 10 topu da deliğe sokarsan <b>Altın Bayrak Kupası</b> senin!",
             30, CardText, new Vector2(0f, 0f), new Vector2(1120f, 560f));
         body.alignment = TextAlignmentOptions.Left;

@@ -284,7 +284,6 @@ public class CubeChaser : MonoBehaviour
         pc.Knockback(dir, hitForce, stunTime);
         if (audioSource && bonkClip) audioSource.PlayOneShot(bonkClip);
         if (hitBurst) hitBurst.Play();
-        TopDownCamera.Shake(0.25f, 0.3f);
         GameManager.Instance?.ShowMessage("Robot çarptı!", 1f);
 
         state = State.Cooldown;
