@@ -2138,6 +2138,19 @@ public static class GolfKurucu
         mm.howToPanel = how;
         how.SetActive(false);
 
+        // Çıkış paneli (tarayıcı sürümü: oyun sekme kapatılarak bitirilir)
+        var quit = Overlay(canvas.transform, "Çıkış Paneli");
+        var qcard = Panel(quit.transform, "Kart", new Color(0.99f, 0.98f, 0.95f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(900f, 480f));
+        MakeText(qcard.transform, "Başlık", "Görüşmek üzere!", 66, new Color(0.10f, 0.36f, 0.22f), new Vector2(0f, 160f), new Vector2(820f, 86f));
+        var qbody = MakeText(qcard.transform, "Metin",
+            "Altın Bayrak'ı oynadığın için teşekkürler.\n\nTarayıcı sürümünden çıkmak için bu sekmeyi kapatabilirsin.",
+            32, CardText, new Vector2(0f, 10f), new Vector2(800f, 180f));
+        qbody.lineSpacing = 6f;
+        var bQuitBack = MakeButton(qcard.transform, "Menüye Dön", BtnGreen, new Vector2(0f, -160f), new Vector2(340f, 90f), sfx, click);
+        UnityEventTools.AddPersistentListener(bQuitBack.onClick, mm.CloseQuitPanel);
+        mm.quitPanel = quit;
+        quit.SetActive(false);
+
         MakeEventSystem();
         EditorSceneManager.SaveScene(scene, Root + "/Scenes/AnaMenu.unity");
     }
